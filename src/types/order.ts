@@ -21,6 +21,10 @@ export interface Order {
   text_corrections: string
   shipping_address: string
   payment_method: string
+  receipt_type: string | null
+  business_number: string | null
+  email: string | null
+  card_phone: string | null
   other_requests: string
   image_urls: string[]
   status: OrderStatus

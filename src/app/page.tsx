@@ -23,6 +23,10 @@ export default function OrderPage() {
     text_corrections: '',
     shipping_address: '',
     payment_method: '',
+    receipt_type: '',
+    business_number: '',
+    email: '',
+    card_phone: '',
     other_requests: '',
   })
 
@@ -65,6 +69,8 @@ export default function OrderPage() {
     if (!form.quantity || parseInt(form.quantity) < 1) newErrors.quantity = '수량을 입력해주세요.'
     if (!form.shipping_address.trim()) newErrors.shipping_address = '배송주소를 입력해주세요.'
     if (!form.payment_method) newErrors.payment_method = '결제방법을 선택해주세요.'
+    if (form.payment_method === '계좌이체' && !form.receipt_type) newErrors.receipt_type = '현금영수증/세금계산서를 선택해주세요.'
+    if (form.payment_method === '계좌이체' && form.receipt_type === '세금계산서' && !form.business_number.trim()) newErrors.business_number = '사업자등록번호를 입력해주세요.'
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -173,25 +179,6 @@ export default function OrderPage() {
             </Field>
           </Section>
 
-          <Section title="참고 이미지 (선택)">
-            <p className="text-xs text-gray-500 -mt-2">최대 5장까지 업로드 가능합니다.</p>
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full border-2 border-dashed border-pink-300 rounded-xl py-4 text-pink-500 text-sm hover:bg-pink-50 transition">
-              + 이미지 추가
-            </button>
-            <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageChange} className="hidden" />
-            {imagePreviews.length > 0 && (
-              <div className="grid grid-cols-3 gap-2 mt-3">
-                {imagePreviews.map((src, i) => (
-                  <div key={i} className="relative aspect-square">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt={`참고이미지${i + 1}`} className="w-full h-full object-cover rounded-lg" />
-                    <button type="button" onClick={() => removeImage(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">×</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Section>
-
           <Section title="배송 및 결제">
             <Field label="배송주소" required error={errors.shipping_address}>
               <input name="shipping_address" value={form.shipping_address} onChange={handleChange} placeholder="도로명 주소를 입력해주세요" className={inputClass(errors.shipping_address)} />
@@ -207,10 +194,65 @@ export default function OrderPage() {
               </div>
               {errors.payment_method && <p className="text-red-500 text-xs mt-1">{errors.payment_method}</p>}
             </Field>
+
+            {/* 계좌이체 추가 항목 */}
+            {form.payment_method === '계좌이체' && (
+              <>
+                <Field label="세금계산서 / 현금영수증" required error={errors.receipt_type}>
+                  <div className="flex gap-3">
+                    {['현금영수증', '세금계산서'].map(r => (
+                      <label key={r} className={`flex-1 border rounded-xl py-3 text-center text-sm cursor-pointer transition ${form.receipt_type === r ? 'bg-purple-500 border-purple-500 text-white font-semibold' : 'border-gray-300 text-gray-700 hover:border-purple-300'}`}>
+                        <input type="radio" name="receipt_type" value={r} checked={form.receipt_type === r} onChange={handleChange} className="hidden" />
+                        {r}
+                      </label>
+                    ))}
+                  </div>
+                  {errors.receipt_type && <p className="text-red-500 text-xs mt-1">{errors.receipt_type}</p>}
+                </Field>
+                {form.receipt_type === '세금계산서' && (
+                  <Field label="사업자등록번호" required error={errors.business_number}>
+                    <input name="business_number" value={form.business_number} onChange={handleChange} placeholder="000-00-00000" className={inputClass(errors.business_number)} />
+                  </Field>
+                )}
+                <Field label="이메일 주소" error={errors.email}>
+                  <input name="email" value={form.email} onChange={handleChange} placeholder="example@email.com" type="email" className={inputClass(errors.email)} />
+                </Field>
+              </>
+            )}
+
+            {/* 카드결제 추가 항목 */}
+            {form.payment_method === '카드결제' && (
+              <>
+                <Field label="결제 링크 받을 휴대폰번호" error={errors.card_phone}>
+                  <input name="card_phone" value={form.card_phone} onChange={handleChange} placeholder="010-0000-0000" className={inputClass(errors.card_phone)} />
+                </Field>
+                <Field label="이메일 주소" error={errors.email}>
+                  <input name="email" value={form.email} onChange={handleChange} placeholder="example@email.com" type="email" className={inputClass(errors.email)} />
+                </Field>
+              </>
+            )}
           </Section>
 
           <Section title="기타 요청사항 (선택)">
             <textarea name="other_requests" value={form.other_requests} onChange={handleChange} placeholder="추가로 전달하고 싶은 내용을 자유롭게 적어주세요." rows={3} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none" />
+            <div>
+              <p className="text-xs text-gray-500 mb-2">참고 이미지 첨부 (선택, 최대 5장)</p>
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full border-2 border-dashed border-pink-300 rounded-xl py-3 text-pink-500 text-sm hover:bg-pink-50 transition">
+                + 이미지 추가
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageChange} className="hidden" />
+              {imagePreviews.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mt-3">
+                  {imagePreviews.map((src, i) => (
+                    <div key={i} className="relative aspect-square">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt={`참고이미지${i + 1}`} className="w-full h-full object-cover rounded-lg" />
+                      <button type="button" onClick={() => removeImage(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </Section>
 
           <button type="submit" disabled={isSubmitting} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-4 rounded-xl font-bold text-base hover:opacity-90 transition disabled:opacity-60">

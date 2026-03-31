@@ -259,6 +259,10 @@ export default function AdminPage() {
               <DetailRow label="문구 수정" value={selected.text_corrections || '-'} />
               <DetailRow label="배송주소" value={selected.shipping_address} />
               <DetailRow label="결제방법" value={selected.payment_method} />
+              {selected.receipt_type && <DetailRow label="세금계산서/영수증" value={selected.receipt_type} />}
+              {selected.business_number && <DetailRow label="사업자등록번호" value={selected.business_number} />}
+              {selected.email && <DetailRow label="이메일" value={selected.email} />}
+              {selected.card_phone && <DetailRow label="카드결제 연락처" value={selected.card_phone} />}
               <DetailRow label="기타 요청" value={selected.other_requests || '-'} />
 
               {/* 고객 첨부 이미지 */}

@@ -53,3 +53,11 @@ ALTER TABLE orders ADD CONSTRAINT orders_status_check
 -- DELETE 권한 추가
 CREATE POLICY "anon can delete orders" ON orders
   FOR DELETE TO anon USING (true);
+
+-- =============================================
+-- 마이그레이션: 결제 추가 정보 컬럼 추가
+-- =============================================
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS receipt_type TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS business_number TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS card_phone TEXT;
