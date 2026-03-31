@@ -24,3 +24,24 @@ export async function PATCH(
     return NextResponse.json({ success: false, error: '상태 업데이트에 실패했습니다.' }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+
+    const { error } = await supabase
+      .from('orders')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Order delete error:', error)
+    return NextResponse.json({ success: false, error: '삭제에 실패했습니다.' }, { status: 500 })
+  }
+}

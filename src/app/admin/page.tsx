@@ -70,6 +70,16 @@ export default function AdminPage() {
     updateStatus(id, '취소')
   }
 
+  const deleteOrder = async (id: string) => {
+    if (!confirm('이 주문을 완전히 삭제하시겠습니까? 복구할 수 없습니다.')) return
+    const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' })
+    const result = await res.json()
+    if (result.success) {
+      setOrders(prev => prev.filter(o => o.id !== id))
+      setSelected(null)
+    }
+  }
+
   const filtered = filter === '전체' ? orders : orders.filter(o => o.status === filter)
 
   const counts: Record<string, number> = {
@@ -226,6 +236,12 @@ export default function AdminPage() {
                     취소
                   </button>
                 )}
+                <button
+                  onClick={() => deleteOrder(selected.id)}
+                  className="px-4 py-3 border border-red-300 text-red-500 rounded-xl text-sm hover:bg-red-50 transition"
+                >
+                  삭제
+                </button>
               </div>
             </div>
           </div>
