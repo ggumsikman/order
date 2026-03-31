@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
         business_number: body.business_number || null,
         email: body.email || null,
         card_phone: body.card_phone || null,
+        items: body.items || null,
         other_requests: body.other_requests || '',
         image_urls: body.image_urls || [],
         status: '접수',

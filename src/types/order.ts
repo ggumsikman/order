@@ -1,3 +1,12 @@
+export interface OrderItem {
+  product_type: string
+  design_type: string
+  width_cm: number | null
+  height_cm: number | null
+  quantity: number
+  finishing: string[]
+}
+
 export type OrderStatus =
   | '접수'
   | '작업중'
@@ -26,6 +35,7 @@ export interface Order {
   email: string | null
   card_phone: string | null
   payment_link: string | null
+  items: OrderItem[] | null
   other_requests: string
   image_urls: string[]
   status: OrderStatus

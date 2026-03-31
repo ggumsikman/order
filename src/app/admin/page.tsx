@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Order, OrderStatus } from '@/types/order'
+import { Order, OrderItem, OrderStatus } from '@/types/order'
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || '1234'
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://ilbirong.vercel.app'
@@ -267,10 +267,30 @@ export default function AdminPage() {
               )}
 
               <DetailRow label="연락처" value={selected.phone} />
-              <DetailRow label="제품 종류" value={selected.product_type} />
-              <DetailRow label="디자인 방식" value={selected.design_type} />
-              <DetailRow label="사이즈" value={`가로 ${selected.width_cm}cm × 세로 ${selected.height_cm}cm`} />
-              <DetailRow label="수량" value={`${selected.quantity}개`} />
+
+              {/* 다중 항목 표시 */}
+              {selected.items && selected.items.length > 0 ? (
+                <div className="space-y-2">
+                  {selected.items.map((item: OrderItem, i: number) => (
+                    <div key={i} className="bg-gray-50 rounded-xl p-3 text-sm">
+                      {selected.items!.length > 1 && <p className="text-xs text-gray-400 mb-1 font-medium">항목 {i + 1}</p>}
+                      <p className="text-gray-800 font-medium">{item.product_type}</p>
+                      <p className="text-gray-500">{item.design_type} · {item.width_cm}×{item.height_cm}cm · {item.quantity}개</p>
+                      {item.finishing?.length > 0 && (
+                        <p className="text-pink-600 text-xs mt-0.5">후가공: {item.finishing.join(', ')}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <DetailRow label="제품 종류" value={selected.product_type} />
+                  <DetailRow label="디자인 방식" value={selected.design_type} />
+                  <DetailRow label="사이즈" value={`가로 ${selected.width_cm}cm × 세로 ${selected.height_cm}cm`} />
+                  <DetailRow label="수량" value={`${selected.quantity}개`} />
+                </>
+              )}
+
               <DetailRow label="문구 수정" value={selected.text_corrections || '-'} />
               <DetailRow label="배송주소" value={selected.shipping_address} />
               <DetailRow label="결제방법" value={selected.payment_method} />
