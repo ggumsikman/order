@@ -275,7 +275,7 @@ export default function AdminPage() {
                     <div key={i} className="bg-gray-50 rounded-xl p-3 text-sm">
                       {selected.items!.length > 1 && <p className="text-xs text-gray-400 mb-1 font-medium">항목 {i + 1}</p>}
                       <p className="text-gray-800 font-medium">{item.product_type}</p>
-                      <p className="text-gray-500">{item.design_type} · {item.width_cm}×{item.height_cm}cm · {item.quantity}개</p>
+                      <p className="text-gray-500">{item.design_type}{item.design_name ? ` · ${item.design_name}` : ''}{item.design_sub_name ? ` > ${item.design_sub_name}` : ''} · {item.width_cm}×{item.height_cm}cm · {item.quantity}개</p>
                       {item.finishing?.length > 0 && (
                         <p className="text-pink-600 text-xs mt-0.5">후가공: {item.finishing.join(', ')}</p>
                       )}
@@ -291,13 +291,21 @@ export default function AdminPage() {
                 </>
               )}
 
-              <DetailRow label="문구 수정" value={selected.text_corrections || '-'} />
+              {(selected.text_top || selected.text_main || selected.text_bottom) && (
+                <div className="space-y-1">
+                  {selected.text_top && <DetailRow label="상단 문구" value={selected.text_top} />}
+                  {selected.text_main && <DetailRow label="메인 문구" value={selected.text_main} />}
+                  {selected.text_bottom && <DetailRow label="하단 문구" value={selected.text_bottom} />}
+                </div>
+              )}
+              {selected.text_corrections && <DetailRow label="기타 문구 수정" value={selected.text_corrections} />}
               <DetailRow label="배송주소" value={selected.shipping_address} />
               <DetailRow label="결제방법" value={selected.payment_method} />
               {selected.receipt_type && <DetailRow label="세금계산서/영수증" value={selected.receipt_type} />}
               {selected.business_number && <DetailRow label="사업자등록번호" value={selected.business_number} />}
               {selected.email && <DetailRow label="이메일" value={selected.email} />}
               {selected.card_phone && <DetailRow label="카드결제 연락처" value={selected.card_phone} />}
+              {selected.needs_statement && <DetailRow label="거래명세서/견적서" value={`요청 · ${selected.statement_email || '이메일 미입력'}`} />}
               <DetailRow label="기타 요청" value={selected.other_requests || '-'} />
 
               {/* 고객 첨부 이미지 */}

@@ -16,6 +16,9 @@ export async function POST(req: NextRequest) {
         width_cm: body.width_cm ? parseFloat(body.width_cm) : null,
         height_cm: body.height_cm ? parseFloat(body.height_cm) : null,
         quantity: parseInt(body.quantity),
+        text_top: body.text_top || null,
+        text_main: body.text_main || null,
+        text_bottom: body.text_bottom || null,
         text_corrections: body.text_corrections || '',
         shipping_address: body.shipping_address,
         payment_method: body.payment_method,
@@ -25,6 +28,8 @@ export async function POST(req: NextRequest) {
         card_phone: body.card_phone || null,
         items: body.items || null,
         other_requests: body.other_requests || '',
+        needs_statement: body.needs_statement || false,
+        statement_email: body.statement_email || null,
         image_urls: body.image_urls || [],
         status: '접수',
       }])

@@ -12,6 +12,8 @@ interface ItemForm {
   product_type: string
   product_type_custom: string
   design_type: string
+  design_name: string
+  design_sub_name: string
   width_cm: string
   height_cm: string
   quantity: string
@@ -22,6 +24,8 @@ const defaultItem = (): ItemForm => ({
   product_type: '',
   product_type_custom: '',
   design_type: '',
+  design_name: '',
+  design_sub_name: '',
   width_cm: '',
   height_cm: '',
   quantity: '1',
@@ -35,7 +39,12 @@ export default function OrderPage() {
   const [form, setForm] = useState({
     customer_name: '',
     phone: '',
+    text_top: '',
+    text_main: '',
+    text_bottom: '',
     text_corrections: '',
+    needs_statement: false,
+    statement_email: '',
     shipping_address: '',
     payment_method: '',
     receipt_type: '',
@@ -133,6 +142,8 @@ export default function OrderPage() {
       const orderItems = items.map(item => ({
         product_type: item.product_type === '포멕스 (직접입력)' ? item.product_type_custom : item.product_type,
         design_type: item.design_type,
+        design_name: item.design_name,
+        design_sub_name: item.design_sub_name,
         width_cm: parseFloat(item.width_cm) || null,
         height_cm: parseFloat(item.height_cm) || null,
         quantity: parseInt(item.quantity),
@@ -222,6 +233,27 @@ export default function OrderPage() {
                     {DESIGN_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </Field>
+                {item.design_type === '기본 디자인 선택' && (
+                  <>
+                    <Field label="디자인 이름" error={errors[`item_${index}_design_name`]}>
+                      <input
+                        value={item.design_name}
+                        onChange={e => updateItem(index, 'design_name', e.target.value)}
+                        placeholder="예) 식목일 생태체험, 크레파스밭기"
+                        className={inputClass(errors[`item_${index}_design_name`])}
+                      />
+                      <p className="text-xs text-gray-400 mt-1">네이버 스마트스토어 상세페이지에서 확인하신 디자인 이름을 적어주세요.</p>
+                    </Field>
+                    <Field label="세부 디자인 (색상/버전)">
+                      <input
+                        value={item.design_sub_name}
+                        onChange={e => updateItem(index, 'design_sub_name', e.target.value)}
+                        placeholder="예) 초록나무, 핑크버전 (해당되는 경우만)"
+                        className={inputClass()}
+                      />
+                    </Field>
+                  </>
+                )}
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-1.5">사이즈 (cm) <span className="text-pink-500">*</span></p>
                   <div className="grid grid-cols-2 gap-3">
@@ -264,8 +296,20 @@ export default function OrderPage() {
             + 주문 항목 추가
           </button>
 
-          <Section title="문구 수정사항 (선택)">
-            <textarea name="text_corrections" value={form.text_corrections} onChange={handleChange} placeholder="변경할 문구를 적어주세요. 예) '졸업을 축하합니다' → '생일을 축하합니다'" rows={3} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none" />
+          <Section title="문구 내용 (선택)">
+            <p className="text-xs text-gray-500 -mt-2 mb-2">기본 디자인의 문구를 변경하거나, 새로 입력할 내용을 적어주세요.</p>
+            <Field label="상단 문구">
+              <input name="text_top" value={form.text_top} onChange={handleChange} placeholder="예) 초록 말풍선 - ❤지구를 지켜요❤" className={inputClass()} />
+            </Field>
+            <Field label="메인 문구">
+              <input name="text_main" value={form.text_main} onChange={handleChange} placeholder="예) 지구를 구하는 초록 이야기" className={inputClass()} />
+            </Field>
+            <Field label="하단 문구">
+              <input name="text_bottom" value={form.text_bottom} onChange={handleChange} placeholder="예) 상주원광유치원" className={inputClass()} />
+            </Field>
+            <Field label="기타 문구 수정사항">
+              <textarea name="text_corrections" value={form.text_corrections} onChange={handleChange} placeholder="위 항목 외 추가 변경사항을 자유롭게 적어주세요." rows={2} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none" />
+            </Field>
           </Section>
 
           <Section title="배송 및 결제">
@@ -318,6 +362,32 @@ export default function OrderPage() {
                 </Field>
               </>
             )}
+
+            {/* 거래명세서/견적서 요청 */}
+            <div className="pt-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="needs_statement"
+                  checked={form.needs_statement}
+                  onChange={e => setForm(prev => ({ ...prev, needs_statement: e.target.checked }))}
+                  className="w-4 h-4 accent-pink-500"
+                />
+                <span className="text-sm text-gray-700">거래명세서 / 견적서 이메일 발송 요청</span>
+              </label>
+              {form.needs_statement && (
+                <div className="mt-2">
+                  <input
+                    name="statement_email"
+                    value={form.statement_email}
+                    onChange={handleChange}
+                    placeholder="받으실 이메일 주소"
+                    type="email"
+                    className={inputClass()}
+                  />
+                </div>
+              )}
+            </div>
           </Section>
 
           <Section title="기타 요청사항 (선택)">
@@ -353,6 +423,9 @@ export default function OrderPage() {
                     <div key={i} className="flex justify-between items-start text-sm">
                       <div>
                         <span className="font-medium text-gray-800">{name}</span>
+                        {item.design_name && (
+                          <span className="text-purple-600 ml-1">· {item.design_name}</span>
+                        )}
                         {(item.width_cm || item.height_cm) && (
                           <span className="text-gray-500 ml-1">({item.width_cm || '?'}×{item.height_cm || '?'}cm)</span>
                         )}

@@ -1,6 +1,8 @@
 export interface OrderItem {
   product_type: string
   design_type: string
+  design_name?: string
+  design_sub_name?: string
   width_cm: number | null
   height_cm: number | null
   quantity: number
@@ -27,7 +29,12 @@ export interface Order {
   width_cm: number | null
   height_cm: number | null
   quantity: number
+  text_top: string | null
+  text_main: string | null
+  text_bottom: string | null
   text_corrections: string
+  needs_statement: boolean
+  statement_email: string | null
   shipping_address: string
   payment_method: string
   receipt_type: string | null
