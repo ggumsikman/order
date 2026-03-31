@@ -1,0 +1,36 @@
+-- 주문 테이블 생성
+CREATE TABLE orders (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  customer_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  product_type TEXT NOT NULL,
+  design_type TEXT NOT NULL,
+  width_cm NUMERIC,
+  height_cm NUMERIC,
+  quantity INTEGER NOT NULL,
+  text_corrections TEXT DEFAULT '',
+  shipping_address TEXT NOT NULL,
+  payment_method TEXT NOT NULL,
+  other_requests TEXT DEFAULT '',
+  image_urls TEXT[] DEFAULT '{}',
+  status TEXT DEFAULT '접수' CHECK (status IN ('접수', '작업중', '완료', '취소'))
+);
+
+-- 최신순 조회를 위한 인덱스
+CREATE INDEX orders_created_at_idx ON orders (created_at DESC);
+
+-- RLS 비활성화 (anon key로 읽기/쓰기 허용)
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "anon can insert orders" ON orders
+  FOR INSERT TO anon WITH CHECK (true);
+
+CREATE POLICY "anon can select orders" ON orders
+  FOR SELECT TO anon USING (true);
+
+CREATE POLICY "anon can update orders" ON orders
+  FOR UPDATE TO anon USING (true);
+
+-- Storage 버킷 생성 (Supabase 대시보드 > Storage에서 수동으로 만들어도 됨)
+-- 버킷 이름: order-images (Public 버킷으로 설정)
