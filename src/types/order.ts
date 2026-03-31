@@ -25,6 +25,7 @@ export interface Order {
   business_number: string | null
   email: string | null
   card_phone: string | null
+  payment_link: string | null
   other_requests: string
   image_urls: string[]
   status: OrderStatus

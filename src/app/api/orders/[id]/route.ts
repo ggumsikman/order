@@ -32,6 +32,7 @@ export async function PATCH(
     const updateData: Record<string, unknown> = {}
     if (body.status !== undefined) updateData.status = body.status
     if (body.draft_images !== undefined) updateData.draft_images = body.draft_images
+    if (body.payment_link !== undefined) updateData.payment_link = body.payment_link
 
     const { data, error } = await supabase
       .from('orders')

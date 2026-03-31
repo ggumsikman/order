@@ -34,6 +34,8 @@ export default function AdminPage() {
   const [draftUploading, setDraftUploading] = useState(false)
   const [newDraftUrls, setNewDraftUrls] = useState<string[]>([])
   const [copied, setCopied] = useState(false)
+  const [payCopied, setPayCopied] = useState(false)
+  const [paymentLinkInput, setPaymentLinkInput] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchOrders = useCallback(async () => {
@@ -55,7 +57,9 @@ export default function AdminPage() {
   useEffect(() => {
     setNewDraftUrls([])
     setCopied(false)
-  }, [selected?.id])
+    setPayCopied(false)
+    setPaymentLinkInput(selected?.payment_link || '')
+  }, [selected?.id, selected?.payment_link])
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -121,6 +125,17 @@ export default function AdminPage() {
     navigator.clipboard.writeText(`${BASE_URL}/review/${id}`)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const copyPayLink = (id: string) => {
+    navigator.clipboard.writeText(`${BASE_URL}/pay/${id}`)
+    setPayCopied(true)
+    setTimeout(() => setPayCopied(false), 2000)
+  }
+
+  const savePaymentLink = async () => {
+    if (!selected) return
+    await updateOrder(selected.id, { payment_link: paymentLinkInput.trim() || null } as Partial<Order>)
   }
 
   const filtered = filter === '전체' ? orders : orders.filter(o => o.status === filter)
@@ -388,6 +403,45 @@ export default function AdminPage() {
                   >
                     ✅ 생산 완료 처리
                   </button>
+                )}
+
+                {/* 카드결제 링크 관리 */}
+                {selected.payment_method === '카드결제' && (
+                  <div className="border border-blue-200 bg-blue-50 rounded-xl p-4 space-y-3">
+                    <p className="text-sm font-medium text-blue-800">💳 카드 결제 링크</p>
+                    <div className="flex gap-2">
+                      <input
+                        value={paymentLinkInput}
+                        onChange={e => setPaymentLinkInput(e.target.value)}
+                        placeholder="결제 링크 URL을 붙여넣으세요"
+                        className="flex-1 text-xs bg-white border border-blue-300 rounded-lg px-3 py-2 text-gray-700 focus:outline-none"
+                      />
+                      <button
+                        onClick={savePaymentLink}
+                        className="px-3 py-2 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition whitespace-nowrap"
+                      >
+                        저장
+                      </button>
+                    </div>
+                    {selected.payment_link && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-blue-700">고객 결제 페이지 링크를 복사해서 전달하세요.</p>
+                        <div className="flex gap-2">
+                          <input
+                            readOnly
+                            value={`${BASE_URL}/pay/${selected.id}`}
+                            className="flex-1 text-xs bg-white border border-blue-300 rounded-lg px-3 py-2 text-gray-600"
+                          />
+                          <button
+                            onClick={() => copyPayLink(selected.id)}
+                            className="px-3 py-2 bg-blue-400 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition whitespace-nowrap"
+                          >
+                            {payCopied ? '복사됨 ✓' : '복사'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {/* 취소 / 삭제 버튼 */}
