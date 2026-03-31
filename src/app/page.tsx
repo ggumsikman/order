@@ -342,6 +342,38 @@ export default function OrderPage() {
             </div>
           </Section>
 
+          {/* 주문 요약 */}
+          {items.some(item => item.product_type) && (
+            <div className="bg-pink-50 border border-pink-200 rounded-2xl p-5">
+              <h2 className="font-bold text-gray-800 mb-3 text-base">주문 요약</h2>
+              <div className="space-y-2">
+                {items.filter(item => item.product_type).map((item, i) => {
+                  const name = item.product_type === '포멕스 (직접입력)' ? item.product_type_custom || '포멕스' : item.product_type
+                  return (
+                    <div key={i} className="flex justify-between items-start text-sm">
+                      <div>
+                        <span className="font-medium text-gray-800">{name}</span>
+                        {(item.width_cm || item.height_cm) && (
+                          <span className="text-gray-500 ml-1">({item.width_cm || '?'}×{item.height_cm || '?'}cm)</span>
+                        )}
+                        {item.finishing.length > 0 && (
+                          <span className="text-pink-600 ml-1">· {item.finishing.join(', ')}</span>
+                        )}
+                      </div>
+                      <span className="text-gray-700 font-semibold ml-3 shrink-0">{item.quantity || 0}개</span>
+                    </div>
+                  )
+                })}
+                {items.filter(item => item.product_type).length > 1 && (
+                  <div className="border-t border-pink-200 pt-2 flex justify-between text-sm font-bold text-gray-800">
+                    <span>총 수량</span>
+                    <span>{items.filter(item => item.product_type).reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0)}개</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <button type="submit" disabled={isSubmitting} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-4 rounded-xl font-bold text-base hover:opacity-90 transition disabled:opacity-60">
             {isSubmitting ? '접수 중...' : '주문 접수하기'}
           </button>
