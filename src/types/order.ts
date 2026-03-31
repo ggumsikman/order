@@ -1,4 +1,12 @@
-export type OrderStatus = '접수' | '작업중' | '완료' | '취소'
+export type OrderStatus =
+  | '접수'
+  | '작업중'
+  | '시안 확인 요청중'
+  | '시안 수정 요청'
+  | '시안 수정 작업중'
+  | '시안 확정'
+  | '완료'
+  | '취소'
 
 export interface Order {
   id: string
@@ -16,4 +24,7 @@ export interface Order {
   other_requests: string
   image_urls: string[]
   status: OrderStatus
+  draft_images: string[]
+  revision_count: number
+  revision_notes: string
 }

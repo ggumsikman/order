@@ -1,32 +1,40 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Order, OrderStatus } from '@/types/order'
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || '1234'
-const STATUS_TABS: OrderStatus[] = ['접수', '작업중', '완료', '취소']
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://ilbirong.vercel.app'
+
+const ALL_STATUSES: OrderStatus[] = ['접수', '작업중', '시안 확인 요청중', '시안 수정 요청', '시안 수정 작업중', '시안 확정', '완료', '취소']
+
 const STATUS_COLORS: Record<OrderStatus, string> = {
   '접수': 'bg-blue-100 text-blue-700',
-  '작업중': 'bg-yellow-100 text-yellow-700',
+  '작업중': 'bg-purple-100 text-purple-700',
+  '시안 확인 요청중': 'bg-yellow-100 text-yellow-700',
+  '시안 수정 요청': 'bg-orange-100 text-orange-700',
+  '시안 수정 작업중': 'bg-pink-100 text-pink-700',
+  '시안 확정': 'bg-teal-100 text-teal-700',
   '완료': 'bg-green-100 text-green-700',
   '취소': 'bg-gray-100 text-gray-500',
 }
-const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
-  '접수': '작업중',
-  '작업중': '완료',
-  '완료': null,
-  '취소': null,
-}
+
+const FILTER_TABS = ['전체', '접수', '작업중', '시안 확인 요청중', '시안 수정 요청', '시안 수정 작업중', '시안 확정', '완료', '취소'] as const
 
 export default function AdminPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [password, setPassword] = useState('')
   const [loginError, setLoginError] = useState('')
-
   const [orders, setOrders] = useState<Order[]>([])
-  const [filter, setFilter] = useState<'전체' | OrderStatus>('전체')
+  const [filter, setFilter] = useState<typeof FILTER_TABS[number]>('전체')
   const [selected, setSelected] = useState<Order | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // 시안 업로드 상태
+  const [draftUploading, setDraftUploading] = useState(false)
+  const [newDraftUrls, setNewDraftUrls] = useState<string[]>([])
+  const [copied, setCopied] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
@@ -43,6 +51,12 @@ export default function AdminPage() {
     if (isLoggedIn) fetchOrders()
   }, [isLoggedIn, fetchOrders])
 
+  // 선택된 주문이 바뀔 때 시안 업로드 상태 초기화
+  useEffect(() => {
+    setNewDraftUrls([])
+    setCopied(false)
+  }, [selected?.id])
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
     if (password === ADMIN_PASSWORD) {
@@ -52,22 +66,18 @@ export default function AdminPage() {
     }
   }
 
-  const updateStatus = async (id: string, status: OrderStatus) => {
+  const updateOrder = async (id: string, patch: Partial<Order>) => {
     const res = await fetch(`/api/orders/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(patch),
     })
     const result = await res.json()
     if (result.success) {
-      setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o))
-      if (selected?.id === id) setSelected(prev => prev ? { ...prev, status } : null)
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, ...result.order } : o))
+      if (selected?.id === id) setSelected(result.order)
     }
-  }
-
-  const cancelOrder = async (id: string) => {
-    if (!confirm('이 주문을 취소하시겠습니까?')) return
-    updateStatus(id, '취소')
+    return result
   }
 
   const deleteOrder = async (id: string) => {
@@ -80,12 +90,44 @@ export default function AdminPage() {
     }
   }
 
-  const filtered = filter === '전체' ? orders : orders.filter(o => o.status === filter)
-
-  const counts: Record<string, number> = {
-    전체: orders.length,
-    ...STATUS_TABS.reduce((acc, s) => ({ ...acc, [s]: orders.filter(o => o.status === s).length }), {} as Record<string, number>)
+  const uploadDraftFiles = async (files: FileList) => {
+    setDraftUploading(true)
+    const urls: string[] = []
+    try {
+      for (const file of Array.from(files)) {
+        const formData = new FormData()
+        formData.append('file', file)
+        const res = await fetch('/api/upload', { method: 'POST', body: formData })
+        const result = await res.json()
+        if (result.success) urls.push(result.url)
+      }
+      setNewDraftUrls(prev => [...prev, ...urls])
+    } finally {
+      setDraftUploading(false)
+    }
   }
+
+  const sendDraft = async () => {
+    if (!selected) return
+    const allDrafts = [...(selected.draft_images || []), ...newDraftUrls]
+    await updateOrder(selected.id, {
+      draft_images: allDrafts,
+      status: '시안 확인 요청중',
+    })
+    setNewDraftUrls([])
+  }
+
+  const copyReviewLink = (id: string) => {
+    navigator.clipboard.writeText(`${BASE_URL}/review/${id}`)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const filtered = filter === '전체' ? orders : orders.filter(o => o.status === filter)
+  const counts = FILTER_TABS.reduce((acc, tab) => {
+    acc[tab] = tab === '전체' ? orders.length : orders.filter(o => o.status === tab).length
+    return acc
+  }, {} as Record<string, number>)
 
   if (!isLoggedIn) {
     return (
@@ -116,7 +158,6 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
@@ -132,7 +173,7 @@ export default function AdminPage() {
       <div className="max-w-5xl mx-auto px-4 py-6">
         {/* 탭 필터 */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-          {(['전체', ...STATUS_TABS] as const).map(tab => (
+          {FILTER_TABS.map(tab => (
             <button
               key={tab}
               onClick={() => setFilter(tab)}
@@ -157,21 +198,21 @@ export default function AdminPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[order.status]}`}>{order.status}</span>
+                      {order.revision_count > 0 && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${order.revision_count > 2 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                          {order.revision_count > 2 ? `💰 ${order.revision_count}차 수정` : `${order.revision_count}차 수정`}
+                        </span>
+                      )}
                       <span className="text-xs text-gray-400">{new Date(order.created_at).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                     <p className="font-semibold text-gray-800">{order.customer_name} <span className="font-normal text-gray-500 text-sm">({order.phone})</span></p>
                     <p className="text-sm text-gray-500 mt-0.5 truncate">{order.product_type} · {order.width_cm}×{order.height_cm}cm · {order.quantity}개</p>
+                    {order.status === '시안 수정 요청' && order.revision_notes && (
+                      <p className="text-xs text-orange-600 mt-1 truncate">✏️ {order.revision_notes}</p>
+                    )}
                   </div>
-                  {NEXT_STATUS[order.status] && (
-                    <button
-                      onClick={e => { e.stopPropagation(); updateStatus(order.id, NEXT_STATUS[order.status]!) }}
-                      className="text-xs bg-pink-500 text-white px-3 py-1.5 rounded-lg hover:bg-pink-600 transition whitespace-nowrap"
-                    >
-                      → {NEXT_STATUS[order.status]}
-                    </button>
-                  )}
                 </div>
               </div>
             ))}
@@ -192,7 +233,23 @@ export default function AdminPage() {
             </div>
 
             <div className="p-6 space-y-3">
-              <span className={`inline-block text-sm px-3 py-1 rounded-full font-medium ${STATUS_COLORS[selected.status]}`}>{selected.status}</span>
+              {/* 상태 + 수정 횟수 */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`inline-block text-sm px-3 py-1 rounded-full font-medium ${STATUS_COLORS[selected.status]}`}>{selected.status}</span>
+                {selected.revision_count > 0 && (
+                  <span className={`text-sm px-3 py-1 rounded-full font-medium ${selected.revision_count > 2 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>
+                    {selected.revision_count > 2 ? `💰 ${selected.revision_count}차 수정 (추가금 발생)` : `${selected.revision_count}차 수정 (무료)`}
+                  </span>
+                )}
+              </div>
+
+              {/* 수정 요청 내용 */}
+              {selected.status === '시안 수정 요청' && selected.revision_notes && (
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
+                  <p className="text-xs font-semibold text-orange-700 mb-1">✏️ 고객 수정 요청 내용</p>
+                  <p className="text-sm text-orange-800">{selected.revision_notes}</p>
+                </div>
+              )}
 
               <DetailRow label="연락처" value={selected.phone} />
               <DetailRow label="제품 종류" value={selected.product_type} />
@@ -204,9 +261,10 @@ export default function AdminPage() {
               <DetailRow label="결제방법" value={selected.payment_method} />
               <DetailRow label="기타 요청" value={selected.other_requests || '-'} />
 
+              {/* 고객 첨부 이미지 */}
               {selected.image_urls?.length > 0 && (
                 <div>
-                  <p className="text-xs text-gray-500 mb-2">참고 이미지</p>
+                  <p className="text-xs text-gray-500 mb-2">고객 첨부 이미지</p>
                   <div className="grid grid-cols-3 gap-2">
                     {selected.image_urls.map((url, i) => (
                       <a key={i} href={url} target="_blank" rel="noreferrer">
@@ -218,30 +276,133 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* 상태 변경 버튼 */}
-              <div className="pt-4 flex gap-2">
-                {NEXT_STATUS[selected.status] && (
+              {/* 현재 시안 이미지 */}
+              {selected.draft_images?.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">현재 시안</p>
+                  <div className="space-y-2">
+                    {selected.draft_images.map((url, i) => (
+                      <a key={i} href={url} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt={`시안${i + 1}`} className="w-full rounded-xl border hover:opacity-90 transition" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* === 액션 영역 === */}
+              <div className="pt-2 space-y-3">
+
+                {/* 시안 업로드 + 발송 (작업중 / 시안 수정 작업중) */}
+                {(selected.status === '작업중' || selected.status === '시안 수정 작업중') && (
+                  <div className="border border-dashed border-gray-300 rounded-xl p-4 space-y-3">
+                    <p className="text-sm font-medium text-gray-700">시안 이미지 업로드</p>
+
+                    {newDraftUrls.length > 0 && (
+                      <div className="space-y-2">
+                        {newDraftUrls.map((url, i) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img key={i} src={url} alt={`새 시안${i + 1}`} className="w-full rounded-xl border" />
+                        ))}
+                      </div>
+                    )}
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={e => e.target.files && uploadDraftFiles(e.target.files)}
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={draftUploading}
+                      className="w-full py-2 border border-gray-300 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition disabled:opacity-40"
+                    >
+                      {draftUploading ? '업로드 중...' : '+ 이미지 선택'}
+                    </button>
+
+                    {newDraftUrls.length > 0 && (
+                      <button
+                        onClick={sendDraft}
+                        className="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl font-semibold text-sm hover:opacity-90 transition"
+                      >
+                        📤 시안 확인 요청 보내기
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* 시안 확인 요청중 - 링크 복사 */}
+                {selected.status === '시안 확인 요청중' && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 space-y-2">
+                    <p className="text-sm font-medium text-yellow-800">⏳ 고객 응답 대기중</p>
+                    <p className="text-xs text-yellow-700">아래 링크를 고객에게 카톡으로 전달해주세요.</p>
+                    <div className="flex gap-2">
+                      <input
+                        readOnly
+                        value={`${BASE_URL}/review/${selected.id}`}
+                        className="flex-1 text-xs bg-white border border-yellow-300 rounded-lg px-3 py-2 text-gray-600"
+                      />
+                      <button
+                        onClick={() => copyReviewLink(selected.id)}
+                        className="px-3 py-2 bg-yellow-400 text-white rounded-lg text-xs font-medium hover:bg-yellow-500 transition whitespace-nowrap"
+                      >
+                        {copied ? '복사됨 ✓' : '복사'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 시안 수정 요청 - 수정 시작 */}
+                {selected.status === '시안 수정 요청' && (
                   <button
-                    onClick={() => updateStatus(selected.id, NEXT_STATUS[selected.status]!)}
-                    className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-xl font-semibold text-sm hover:opacity-90 transition"
+                    onClick={() => updateOrder(selected.id, { status: '시안 수정 작업중' })}
+                    className="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl font-semibold text-sm hover:opacity-90 transition"
                   >
-                    {NEXT_STATUS[selected.status]}(으)로 변경
+                    ✏️ 수정 작업 시작
                   </button>
                 )}
-                {selected.status !== '취소' && selected.status !== '완료' && (
+
+                {/* 접수 → 작업중 */}
+                {selected.status === '접수' && (
                   <button
-                    onClick={() => cancelOrder(selected.id)}
-                    className="px-4 py-3 border border-gray-300 text-gray-500 rounded-xl text-sm hover:bg-gray-50 transition"
+                    onClick={() => updateOrder(selected.id, { status: '작업중' })}
+                    className="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl font-semibold text-sm hover:opacity-90 transition"
                   >
-                    취소
+                    작업 시작
                   </button>
                 )}
-                <button
-                  onClick={() => deleteOrder(selected.id)}
-                  className="px-4 py-3 border border-red-300 text-red-500 rounded-xl text-sm hover:bg-red-50 transition"
-                >
-                  삭제
-                </button>
+
+                {/* 시안 확정 → 완료 */}
+                {selected.status === '시안 확정' && (
+                  <button
+                    onClick={() => updateOrder(selected.id, { status: '완료' })}
+                    className="w-full py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl font-semibold text-sm hover:opacity-90 transition"
+                  >
+                    ✅ 생산 완료 처리
+                  </button>
+                )}
+
+                {/* 취소 / 삭제 버튼 */}
+                <div className="flex gap-2">
+                  {!['완료', '취소'].includes(selected.status) && (
+                    <button
+                      onClick={() => updateOrder(selected.id, { status: '취소' })}
+                      className="flex-1 px-4 py-3 border border-gray-300 text-gray-500 rounded-xl text-sm hover:bg-gray-50 transition"
+                    >
+                      주문 취소
+                    </button>
+                  )}
+                  <button
+                    onClick={() => deleteOrder(selected.id)}
+                    className="px-4 py-3 border border-red-300 text-red-500 rounded-xl text-sm hover:bg-red-50 transition"
+                  >
+                    삭제
+                  </button>
+                </div>
               </div>
             </div>
           </div>

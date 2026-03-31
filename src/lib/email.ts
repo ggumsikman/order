@@ -1,6 +1,8 @@
 import nodemailer from 'nodemailer'
 import { Order } from '@/types/order'
 
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://ilbirong.vercel.app'
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -71,4 +73,50 @@ export async function sendOrderNotification(order: Order) {
   }
 
   await transporter.sendMail(mailOptions)
+}
+
+export async function sendApprovalNotification(order: Order) {
+  await transporter.sendMail({
+    from: `"일비롱디자인 주문시스템" <${process.env.GMAIL_USER}>`,
+    to: process.env.ADMIN_EMAIL,
+    subject: `[일비롱디자인] ✅ 시안 확정 - ${order.customer_name} 고객님`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #22c55e, #16a34a); padding: 24px; border-radius: 12px 12px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 20px;">✅ 고객이 시안을 확정했습니다!</h1>
+        </div>
+        <div style="border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px; padding: 24px;">
+          <p style="margin: 0 0 8px;"><strong>고객명:</strong> ${order.customer_name}</p>
+          <p style="margin: 0 0 8px;"><strong>연락처:</strong> ${order.phone}</p>
+          <p style="margin: 0 0 8px;"><strong>제품:</strong> ${order.product_type}</p>
+          <p style="margin: 0; color: #6b7280; font-size: 13px;">생산 및 배송 단계로 진행해주세요.</p>
+        </div>
+      </div>
+    `,
+  })
+}
+
+export async function sendRevisionNotification(order: Order) {
+  await transporter.sendMail({
+    from: `"일비롱디자인 주문시스템" <${process.env.GMAIL_USER}>`,
+    to: process.env.ADMIN_EMAIL,
+    subject: `[일비롱디자인] 🔄 시안 수정 요청 (${order.revision_count}차) - ${order.customer_name} 고객님`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #f59e0b, #d97706); padding: 24px; border-radius: 12px 12px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 20px;">🔄 시안 수정 요청이 접수되었습니다</h1>
+        </div>
+        <div style="border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px; padding: 24px;">
+          <p style="margin: 0 0 8px;"><strong>고객명:</strong> ${order.customer_name}</p>
+          <p style="margin: 0 0 8px;"><strong>연락처:</strong> ${order.phone}</p>
+          <p style="margin: 0 0 8px;"><strong>수정 횟수:</strong> ${order.revision_count}차 ${order.revision_count > 2 ? '⚠️ 추가 요금 발생' : '(무료)'}</p>
+          <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px; margin-top: 12px;">
+            <p style="margin: 0; font-weight: bold; font-size: 13px; color: #92400e;">수정 요청 내용:</p>
+            <p style="margin: 8px 0 0; color: #78350f;">${order.revision_notes}</p>
+          </div>
+          <p style="margin: 16px 0 0; color: #6b7280; font-size: 13px;">관리자 페이지에서 수정 작업을 시작해주세요.</p>
+        </div>
+      </div>
+    `,
+  })
 }

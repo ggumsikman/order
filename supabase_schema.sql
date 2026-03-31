@@ -34,3 +34,22 @@ CREATE POLICY "anon can update orders" ON orders
 
 -- Storage 버킷 생성 (Supabase 대시보드 > Storage에서 수동으로 만들어도 됨)
 -- 버킷 이름: order-images (Public 버킷으로 설정)
+
+-- =============================================
+-- 마이그레이션: 시안 확인 시스템 추가
+-- Supabase 대시보드 > SQL Editor에서 실행하세요
+-- =============================================
+
+-- 시안 관련 컬럼 추가
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS draft_images TEXT[] DEFAULT '{}';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS revision_count INTEGER DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS revision_notes TEXT DEFAULT '';
+
+-- status CHECK 제약 업데이트 (새 상태값 포함)
+ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
+ALTER TABLE orders ADD CONSTRAINT orders_status_check
+  CHECK (status IN ('접수', '작업중', '시안 확인 요청중', '시안 수정 요청', '시안 수정 작업중', '시안 확정', '완료', '취소'));
+
+-- DELETE 권한 추가
+CREATE POLICY "anon can delete orders" ON orders
+  FOR DELETE TO anon USING (true);
