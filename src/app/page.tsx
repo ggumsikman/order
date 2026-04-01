@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 const PRODUCT_TYPES = ['현수막', '포멕스 A4', '포멕스 A3', '포멕스 (직접입력)', '실사출력', '기타']
 const DESIGN_TYPES = ['기본 디자인 선택', '맞춤 디자인 요청', '직접 파일 제공']
@@ -296,21 +297,34 @@ export default function OrderPage() {
             + 주문 항목 추가
           </button>
 
-          <Section title="문구 내용 (선택)">
-            <p className="text-xs text-gray-500 -mt-2 mb-2">기본 디자인의 문구를 변경하거나, 새로 입력할 내용을 적어주세요.</p>
-            <Field label="상단 문구">
-              <input name="text_top" value={form.text_top} onChange={handleChange} placeholder="예) 초록 말풍선 - ❤지구를 지켜요❤" className={inputClass()} />
-            </Field>
-            <Field label="메인 문구">
-              <input name="text_main" value={form.text_main} onChange={handleChange} placeholder="예) 지구를 구하는 초록 이야기" className={inputClass()} />
-            </Field>
-            <Field label="하단 문구">
-              <input name="text_bottom" value={form.text_bottom} onChange={handleChange} placeholder="예) 상주원광유치원" className={inputClass()} />
-            </Field>
-            <Field label="기타 문구 수정사항">
-              <textarea name="text_corrections" value={form.text_corrections} onChange={handleChange} placeholder="위 항목 외 추가 변경사항을 자유롭게 적어주세요." rows={2} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none" />
-            </Field>
-          </Section>
+          <div className="bg-white rounded-2xl p-5 shadow-sm">
+            <h2 className="font-bold text-gray-800 mb-4 text-base">문구 내용 (선택)</h2>
+            <div className="mb-4 rounded-xl overflow-hidden border border-gray-200">
+              <Image
+                src="/banner-example.jpg"
+                alt="현수막 문구 위치 예시"
+                width={600}
+                height={250}
+                className="w-full h-auto"
+              />
+              <p className="text-xs text-gray-400 text-center py-1.5 bg-gray-50">현수막 문구 위치 예시</p>
+            </div>
+            <div className="space-y-4">
+              <p className="text-xs text-gray-500 -mt-2">기본 디자인의 문구를 변경하거나, 새로 입력할 내용을 적어주세요.</p>
+              <Field label="상단 문구">
+                <input name="text_top" value={form.text_top} onChange={handleChange} placeholder="예) 초록 말풍선 - ❤지구를 지켜요❤" className={inputClass()} />
+              </Field>
+              <Field label="메인 문구">
+                <input name="text_main" value={form.text_main} onChange={handleChange} placeholder="예) 지구를 구하는 초록 이야기" className={inputClass()} />
+              </Field>
+              <Field label="기관명">
+                <input name="text_bottom" value={form.text_bottom} onChange={handleChange} placeholder="예) 일비롱어린이집" className={inputClass()} />
+              </Field>
+              <Field label="기타 문구 수정사항">
+                <textarea name="text_corrections" value={form.text_corrections} onChange={handleChange} placeholder="위 항목 외 추가 변경사항을 자유롭게 적어주세요." rows={2} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none" />
+              </Field>
+            </div>
+          </div>
 
           <Section title="배송 및 결제">
             <Field label="배송주소" required error={errors.shipping_address}>
