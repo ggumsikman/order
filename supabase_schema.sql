@@ -63,3 +63,14 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS card_phone TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_link TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS items JSONB;
+
+-- =============================================
+-- 마이그레이션: 문구/명세서/세부주소 컬럼 추가
+-- Supabase 대시보드 > SQL Editor에서 실행하세요
+-- =============================================
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS text_top TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS text_main TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS text_bottom TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS needs_statement BOOLEAN DEFAULT false;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS statement_email TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_address_detail TEXT;

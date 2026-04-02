@@ -47,6 +47,7 @@ export default function OrderPage() {
     needs_statement: false,
     statement_email: '',
     shipping_address: '',
+    shipping_address_detail: '',
     payment_method: '',
     receipt_type: '',
     business_number: '',
@@ -184,6 +185,11 @@ export default function OrderPage() {
       <div className="bg-gradient-to-r from-pink-500 to-purple-600 text-white py-8 px-4 text-center">
         <h1 className="text-2xl font-bold">일비롱디자인</h1>
         <p className="mt-1 text-pink-100 text-sm">주문서 작성</p>
+        <div className="mt-4 flex flex-col items-center gap-1 text-xs text-pink-100">
+          <p>📞 010-2255-8195</p>
+          <p>🕐 평일 09:00 – 18:00 (주말·공휴일 휴무)</p>
+          <p>📍 경기도 시흥시 마유로 446번길 45, 2층</p>
+        </div>
       </div>
 
       <div className="max-w-xl mx-auto px-4 py-6">
@@ -329,6 +335,7 @@ export default function OrderPage() {
           <Section title="배송 및 결제">
             <Field label="배송주소" required error={errors.shipping_address}>
               <input name="shipping_address" value={form.shipping_address} onChange={handleChange} placeholder="도로명 주소를 입력해주세요" className={inputClass(errors.shipping_address)} />
+              <input name="shipping_address_detail" value={form.shipping_address_detail} onChange={handleChange} placeholder="상세주소 (동/호수, 층 등)" className={`${inputClass()} mt-2`} />
             </Field>
             <Field label="결제방법" required error={errors.payment_method}>
               <div className="flex gap-3">
@@ -346,17 +353,19 @@ export default function OrderPage() {
               <>
                 <Field label="세금계산서 / 현금영수증" required error={errors.receipt_type}>
                   <div className="flex gap-3">
-                    {['현금영수증', '세금계산서'].map(r => (
-                      <label key={r} className={`flex-1 border rounded-xl py-3 text-center text-sm cursor-pointer transition ${form.receipt_type === r ? 'bg-purple-500 border-purple-500 text-white font-semibold' : 'border-gray-300 text-gray-700 hover:border-purple-300'}`}>
-                        <input type="radio" name="receipt_type" value={r} checked={form.receipt_type === r} onChange={handleChange} className="hidden" />
-                        {r}
-                      </label>
-                    ))}
+                    <label className={`flex-1 border rounded-xl py-3 text-center text-sm cursor-pointer transition ${form.receipt_type === '현금영수증' ? 'bg-purple-500 border-purple-500 text-white font-semibold' : 'border-gray-300 text-gray-700 hover:border-purple-300'}`}>
+                      <input type="radio" name="receipt_type" value="현금영수증" checked={form.receipt_type === '현금영수증'} onChange={handleChange} className="hidden" />
+                      현금영수증
+                    </label>
+                    <label className={`flex-1 border rounded-xl py-3 text-center text-sm cursor-pointer transition ${form.receipt_type === '세금계산서' ? 'bg-purple-500 border-purple-500 text-white font-semibold' : 'border-gray-300 text-gray-700 hover:border-purple-300'}`}>
+                      <input type="radio" name="receipt_type" value="세금계산서" checked={form.receipt_type === '세금계산서'} onChange={handleChange} className="hidden" />
+                      세금계산서 <span className="text-xs opacity-80">(부가세 10%별도)</span>
+                    </label>
                   </div>
                   {errors.receipt_type && <p className="text-red-500 text-xs mt-1">{errors.receipt_type}</p>}
                 </Field>
-                {form.receipt_type === '세금계산서' && (
-                  <Field label="사업자등록번호" required error={errors.business_number}>
+                {(form.receipt_type === '세금계산서' || form.receipt_type === '현금영수증') && (
+                  <Field label="사업자등록번호" required={form.receipt_type === '세금계산서'} error={errors.business_number}>
                     <input name="business_number" value={form.business_number} onChange={handleChange} placeholder="000-00-00000" className={inputClass(errors.business_number)} />
                   </Field>
                 )}

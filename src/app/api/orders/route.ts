@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
         text_bottom: body.text_bottom || null,
         text_corrections: body.text_corrections || '',
         shipping_address: body.shipping_address,
+        shipping_address_detail: body.shipping_address_detail || null,
         payment_method: body.payment_method,
         receipt_type: body.receipt_type || null,
         business_number: body.business_number || null,
