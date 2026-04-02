@@ -223,7 +223,7 @@ export default function OrderPage() {
 
           <Section title="고객 정보">
             <Field label="이름(기관명)" required error={errors.customer_name}>
-              <input name="customer_name" value={form.customer_name} onChange={handleChange} placeholder="홍길동" className={inputClass(errors.customer_name)} />
+              <input name="customer_name" value={form.customer_name} onChange={handleChange} placeholder="홍길동(일비롱유치원)" className={inputClass(errors.customer_name)} />
             </Field>
             <Field label="시안 확인 가능한 연락처" required error={errors.phone}>
               <input name="phone" value={form.phone} onChange={handleChange} placeholder="010-0000-0000" className={inputClass(errors.phone)} />
