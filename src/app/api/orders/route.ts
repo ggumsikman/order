@@ -44,7 +44,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, order: data })
   } catch (error) {
     console.error('Order creation error:', error)
-    return NextResponse.json({ success: false, error: '주문 접수에 실패했습니다.' }, { status: 500 })
+    const message = error instanceof Error ? error.message : JSON.stringify(error)
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }
 
