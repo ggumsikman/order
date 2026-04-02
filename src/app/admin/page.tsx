@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Order, OrderItem, OrderStatus } from '@/types/order'
+import { Order, OrderItem, OrderStatus, DraftRevision } from '@/types/order'
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || '1234'
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://ilbirong.vercel.app'
@@ -135,9 +135,13 @@ export default function AdminPage() {
     if (!selected || newDraftUrls.length === 0) return
     setDraftSending(true)
     try {
-      const allDrafts = [...(selected.draft_images || []), ...newDraftUrls]
+      const revisionCount = selected.revision_count ?? 0
+      const label = revisionCount === 0 ? '최초 시안' : `${revisionCount}차 수정 시안`
+      const newEntry: DraftRevision = { revision: revisionCount, label, images: newDraftUrls }
+      const history = [...(selected.draft_history || []), newEntry]
       const result = await updateOrder(selected.id, {
-        draft_images: allDrafts,
+        draft_images: newDraftUrls,
+        draft_history: history,
         status: '시안 확인 요청중',
       })
       if (result.success) {
@@ -358,8 +362,26 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* 현재 시안 이미지 */}
-              {selected.draft_images?.length > 0 && (
+              {/* 시안 이력 */}
+              {(selected.draft_history?.length > 0) ? (
+                <div className="space-y-4">
+                  {[...selected.draft_history].reverse().map((entry: DraftRevision, i: number) => (
+                    <div key={i}>
+                      <p className="text-xs font-semibold mb-1.5 px-1" style={{ color: i === 0 ? '#7c3aed' : '#6b7280' }}>
+                        {i === 0 ? `▶ ${entry.label} (최신)` : entry.label}
+                      </p>
+                      <div className="space-y-2">
+                        {entry.images.map((url, j) => (
+                          <a key={j} href={url} target="_blank" rel="noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={url} alt={`${entry.label} ${j + 1}`} className={`w-full rounded-xl border hover:opacity-90 transition ${i !== 0 ? 'opacity-50' : ''}`} />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : selected.draft_images?.length > 0 && (
                 <div>
                   <p className="text-xs text-gray-500 mb-2">현재 시안</p>
                   <div className="space-y-2">

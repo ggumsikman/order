@@ -20,6 +20,12 @@ export type OrderStatus =
   | '완료'
   | '취소'
 
+export interface DraftRevision {
+  revision: number
+  label: string
+  images: string[]
+}
+
 export interface Order {
   id: string
   created_at: string
@@ -48,6 +54,7 @@ export interface Order {
   image_urls: string[]
   status: OrderStatus
   draft_images: string[]
+  draft_history: DraftRevision[]
   revision_count: number
   revision_notes: string
 }

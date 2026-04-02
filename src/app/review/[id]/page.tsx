@@ -111,21 +111,34 @@ export default function ReviewPage() {
 
         {/* 시안 이미지 */}
         {hasDrafts ? (
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <p className="text-sm text-gray-500 mb-3">시안 이미지</p>
-            <div className="space-y-3">
-              {order.draft_images.map((url, i) => (
-                <a key={i} href={url} target="_blank" rel="noreferrer">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={url}
-                    alt={`시안 ${i + 1}`}
-                    className="w-full rounded-xl border hover:opacity-90 transition"
-                  />
-                </a>
-              ))}
-            </div>
-            <p className="text-xs text-gray-400 mt-2 text-center">이미지를 탭하면 크게 볼 수 있어요</p>
+          <div className="bg-white rounded-2xl p-4 shadow-sm space-y-5">
+            {order.draft_history?.length > 0 ? (
+              [...order.draft_history].reverse().map((entry, i) => (
+                <div key={i}>
+                  <p className={`text-xs font-semibold mb-2 ${i === 0 ? 'text-purple-600' : 'text-gray-400'}`}>
+                    {i === 0 ? `▶ ${entry.label} (현재)` : entry.label}
+                  </p>
+                  <div className="space-y-2">
+                    {entry.images.map((url, j) => (
+                      <a key={j} href={url} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt={`${entry.label} ${j + 1}`} className={`w-full rounded-xl border hover:opacity-90 transition ${i !== 0 ? 'opacity-40' : ''}`} />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="space-y-3">
+                {order.draft_images.map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={`시안 ${i + 1}`} className="w-full rounded-xl border hover:opacity-90 transition" />
+                  </a>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-gray-400 text-center">이미지를 탭하면 크게 볼 수 있어요</p>
           </div>
         ) : (
           <div className="bg-white rounded-2xl p-6 shadow-sm text-center text-gray-400 text-sm">
