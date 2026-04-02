@@ -142,7 +142,7 @@ export default function AdminPage() {
         setNewDraftUrls([])
         setDraftUploadError('')
       } else {
-        alert('시안 발송에 실패했습니다. 다시 시도해주세요.')
+        alert(`시안 발송에 실패했습니다.\n오류: ${result.error || '알 수 없는 오류'}`)
       }
     } catch {
       alert('오류가 발생했습니다. 다시 시도해주세요.')
@@ -401,13 +401,15 @@ export default function AdminPage() {
                       className="hidden"
                       onChange={e => { if (e.target.files) uploadDraftFiles(e.target.files); e.target.value = '' }}
                     />
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={draftUploading}
-                      className="w-full py-2 border border-gray-300 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition disabled:opacity-40"
-                    >
-                      {draftUploading ? '⏳ 업로드 중...' : '+ 이미지 선택'}
-                    </button>
+                    {newDraftUrls.length === 0 && (
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={draftUploading}
+                        className="w-full py-2 border border-gray-300 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition disabled:opacity-40"
+                      >
+                        {draftUploading ? '⏳ 업로드 중...' : '+ 이미지 선택'}
+                      </button>
+                    )}
 
                     {newDraftUrls.length > 0 && (
                       <button
