@@ -55,6 +55,7 @@ export async function POST(
     return NextResponse.json({ success: false, error: '잘못된 요청입니다.' }, { status: 400 })
   } catch (error) {
     console.error('Review respond error:', error)
-    return NextResponse.json({ success: false, error: '처리에 실패했습니다.' }, { status: 500 })
+    const message = (error as { message?: string })?.message ?? String(error)
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }

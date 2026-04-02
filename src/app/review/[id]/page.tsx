@@ -49,11 +49,11 @@ export default function ReviewPage() {
         setStep('done')
       } else {
         setStep('review')
-        alert('처리 중 오류가 발생했습니다. 다시 시도해주세요.')
+        alert(`처리 중 오류가 발생했습니다.\n오류: ${result.error || '알 수 없는 오류'}`)
       }
-    } catch {
+    } catch (e) {
       setStep('review')
-      alert('처리 중 오류가 발생했습니다. 다시 시도해주세요.')
+      alert(`처리 중 오류가 발생했습니다.\n${e instanceof Error ? e.message : String(e)}`)
     }
   }
 
