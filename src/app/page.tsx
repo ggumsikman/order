@@ -3,6 +3,17 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import Script from 'next/script'
+
+declare global {
+  interface Window {
+    daum: {
+      Postcode: new (options: {
+        oncomplete: (data: { roadAddress: string; jibunAddress: string }) => void
+      }) => { open: () => void }
+    }
+  }
+}
 
 const PRODUCT_TYPES = ['현수막', '포멕스 A4', '포멕스 A3', '포멕스 (직접입력)', '실사출력', '기타']
 const DESIGN_TYPES = ['기본 디자인 선택', '맞춤 디자인 요청', '직접 파일 제공']
@@ -180,8 +191,18 @@ export default function OrderPage() {
     }
   }
 
+  const openAddressSearch = () => {
+    new window.daum.Postcode({
+      oncomplete: (data) => {
+        setForm(prev => ({ ...prev, shipping_address: data.roadAddress, shipping_address_detail: '' }))
+        if (errors.shipping_address) setErrors(prev => ({ ...prev, shipping_address: '' }))
+      },
+    }).open()
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
+      <Script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js" strategy="lazyOnload" />
       <div className="bg-gradient-to-r from-pink-500 to-purple-600 text-white py-8 px-4 text-center">
         <h1 className="text-2xl font-bold">일비롱디자인</h1>
         <p className="mt-1 text-pink-100 text-sm">주문서 작성</p>
@@ -334,8 +355,23 @@ export default function OrderPage() {
 
           <Section title="배송 및 결제">
             <Field label="배송주소" required error={errors.shipping_address}>
-              <input name="shipping_address" value={form.shipping_address} onChange={handleChange} placeholder="도로명 주소를 입력해주세요" className={inputClass(errors.shipping_address)} />
-              <input name="shipping_address_detail" value={form.shipping_address_detail} onChange={handleChange} placeholder="상세주소 (동/호수, 층 등)" className={`${inputClass()} mt-2`} />
+              <button
+                type="button"
+                onClick={openAddressSearch}
+                className={`w-full text-left px-4 py-3 text-sm rounded-xl border transition ${errors.shipping_address ? 'border-red-400' : 'border-gray-300 hover:border-pink-400'} ${form.shipping_address ? 'text-gray-800' : 'text-gray-400'}`}
+              >
+                {form.shipping_address || '🔍 주소 검색'}
+              </button>
+              {form.shipping_address && (
+                <input
+                  name="shipping_address_detail"
+                  value={form.shipping_address_detail}
+                  onChange={handleChange}
+                  placeholder="상세주소 (동/호수, 층 등)"
+                  className={`${inputClass()} mt-2`}
+                  autoFocus
+                />
+              )}
             </Field>
             <Field label="결제방법" required error={errors.payment_method}>
               <div className="flex gap-3">
