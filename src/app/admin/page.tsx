@@ -35,6 +35,7 @@ export default function AdminPage() {
   const [draftSending, setDraftSending] = useState(false)
   const [draftUploadError, setDraftUploadError] = useState('')
   const [newDraftUrls, setNewDraftUrls] = useState<string[]>([])
+  const [replacingDraft, setReplacingDraft] = useState(false)
   const [copied, setCopied] = useState(false)
   const [payCopied, setPayCopied] = useState(false)
   const [paymentLinkInput, setPaymentLinkInput] = useState('')
@@ -61,6 +62,7 @@ export default function AdminPage() {
     setCopied(false)
     setPayCopied(false)
     setDraftUploadError('')
+    setReplacingDraft(false)
     setPaymentLinkInput(selected?.payment_link || '')
   }, [selected?.id, selected?.payment_link])
 
@@ -423,9 +425,9 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {/* 시안 확인 요청중 - 링크 복사 */}
+                {/* 시안 확인 요청중 - 링크 복사 + 시안 교체 */}
                 {selected.status === '시안 확인 요청중' && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 space-y-2">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 space-y-3">
                     <p className="text-sm font-medium text-yellow-800">⏳ 고객 응답 대기중</p>
                     <p className="text-xs text-yellow-700">아래 링크를 고객에게 카톡으로 전달해주세요.</p>
                     <div className="flex gap-2">
@@ -441,6 +443,71 @@ export default function AdminPage() {
                         {copied ? '복사됨 ✓' : '복사'}
                       </button>
                     </div>
+
+                    {!replacingDraft ? (
+                      <button
+                        onClick={() => { setReplacingDraft(true); setNewDraftUrls([]); setDraftUploadError('') }}
+                        className="w-full py-2 border border-yellow-300 rounded-xl text-xs text-yellow-700 hover:bg-yellow-100 transition"
+                      >
+                        🔄 시안 교체하기
+                      </button>
+                    ) : (
+                      <div className="border border-dashed border-yellow-300 rounded-xl p-3 space-y-2 bg-white">
+                        <p className="text-xs text-gray-500">새 시안을 업로드하면 기존 시안이 교체됩니다.</p>
+                        {newDraftUrls.length > 0 && (
+                          <div className="space-y-2">
+                            {newDraftUrls.map((url, i) => (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img key={i} src={url} alt={`새 시안${i + 1}`} className="w-full rounded-xl border" />
+                            ))}
+                            <p className="text-xs text-green-600">✓ {newDraftUrls.length}개 업로드 완료</p>
+                          </div>
+                        )}
+                        {draftUploadError && (
+                          <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{draftUploadError}</p>
+                        )}
+                        {newDraftUrls.length === 0 && (
+                          <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={draftUploading}
+                            className="w-full py-2 border border-gray-300 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition disabled:opacity-40"
+                          >
+                            {draftUploading ? '⏳ 업로드 중...' : '+ 이미지 선택'}
+                          </button>
+                        )}
+                        {newDraftUrls.length > 0 && (
+                          <button
+                            onClick={async () => {
+                              setDraftSending(true)
+                              try {
+                                const result = await updateOrder(selected.id, { draft_images: newDraftUrls })
+                                if (result.success) {
+                                  setNewDraftUrls([])
+                                  setReplacingDraft(false)
+                                  setDraftUploadError('')
+                                } else {
+                                  alert(`교체 실패: ${result.error || '알 수 없는 오류'}`)
+                                }
+                              } catch {
+                                alert('오류가 발생했습니다. 다시 시도해주세요.')
+                              } finally {
+                                setDraftSending(false)
+                              }
+                            }}
+                            disabled={draftSending}
+                            className="w-full py-2 bg-yellow-400 text-white rounded-xl text-sm font-semibold hover:bg-yellow-500 transition disabled:opacity-60"
+                          >
+                            {draftSending ? '⏳ 교체 중...' : '✅ 시안 교체 완료'}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => { setReplacingDraft(false); setNewDraftUrls([]); setDraftUploadError('') }}
+                          className="w-full py-2 text-xs text-gray-400 hover:text-gray-600 transition"
+                        >
+                          취소
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
