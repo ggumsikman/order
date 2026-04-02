@@ -46,7 +46,8 @@ export async function PATCH(
     return NextResponse.json({ success: true, order: data })
   } catch (error) {
     console.error('Order update error:', error)
-    return NextResponse.json({ success: false, error: '업데이트에 실패했습니다.' }, { status: 500 })
+    const message = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }
 
