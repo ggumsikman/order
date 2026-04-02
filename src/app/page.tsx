@@ -178,13 +178,24 @@ export default function OrderPage() {
         }),
       })
 
-      const result = await res.json()
+      const text = await res.text()
+      let result
+      try {
+        result = JSON.parse(text)
+      } catch {
+        console.error('API 응답 파싱 실패:', text)
+        alert('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+        return
+      }
+
       if (result.success) {
         router.push('/complete')
       } else {
-        alert('주문 접수에 실패했습니다. 다시 시도해주세요.')
+        console.error('주문 접수 실패:', result.error)
+        alert(`주문 접수에 실패했습니다.\n오류: ${result.error || '알 수 없는 오류'}`)
       }
-    } catch {
+    } catch (err) {
+      console.error('주문 접수 예외:', err)
       alert('오류가 발생했습니다. 다시 시도해주세요.')
     } finally {
       setIsSubmitting(false)
