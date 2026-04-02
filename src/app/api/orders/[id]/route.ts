@@ -41,7 +41,10 @@ export async function PATCH(
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('Order update error:', error)
+      return NextResponse.json({ success: false, error: error.message, details: error }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true, order: data })
   } catch (error) {
