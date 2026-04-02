@@ -29,6 +29,7 @@ export default function AdminPage() {
   const [filter, setFilter] = useState<typeof FILTER_TABS[number]>('전체')
   const [selected, setSelected] = useState<Order | null>(null)
   const [loading, setLoading] = useState(false)
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list')
 
   // 시안 업로드 상태
   const [draftUploading, setDraftUploading] = useState(false)
@@ -215,61 +216,115 @@ export default function AdminPage() {
             <h1 className="font-bold text-gray-800">일비롱디자인 관리자</h1>
             <p className="text-xs text-gray-400">주문 관리 페이지</p>
           </div>
-          <button onClick={fetchOrders} className="text-sm text-pink-500 hover:text-pink-700 font-medium">
-            새로고침
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex bg-gray-100 rounded-lg p-1 text-xs">
+              <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 rounded-md transition font-medium ${viewMode === 'list' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>리스트</button>
+              <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 rounded-md transition font-medium ${viewMode === 'kanban' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>칸반</button>
+            </div>
+            <button onClick={fetchOrders} className="text-sm text-pink-500 hover:text-pink-700 font-medium">새로고침</button>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-6">
-        {/* 탭 필터 */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-          {FILTER_TABS.map(tab => (
-            <button
-              key={tab}
-              onClick={() => setFilter(tab)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition ${filter === tab ? 'bg-pink-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
-            >
-              {tab} <span className="ml-1 opacity-70">({counts[tab] ?? 0})</span>
-            </button>
-          ))}
-        </div>
-
-        {loading ? (
-          <div className="text-center py-16 text-gray-400">불러오는 중...</div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">주문이 없습니다.</div>
-        ) : (
-          <div className="space-y-3">
-            {filtered.map(order => (
-              <div
-                key={order.id}
-                onClick={() => setSelected(order)}
-                className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition"
+      {viewMode === 'list' ? (
+        <div className="max-w-5xl mx-auto px-4 py-6">
+          {/* 탭 필터 */}
+          <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+            {FILTER_TABS.map(tab => (
+              <button
+                key={tab}
+                onClick={() => setFilter(tab)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition ${filter === tab ? 'bg-pink-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[order.status]}`}>{order.status}</span>
-                      {order.revision_count > 0 && (
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${order.revision_count > 2 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
-                          {order.revision_count > 2 ? `💰 ${order.revision_count}차 수정` : `${order.revision_count}차 수정`}
-                        </span>
-                      )}
-                      <span className="text-xs text-gray-400">{new Date(order.created_at).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                    <p className="font-semibold text-gray-800">{order.customer_name} <span className="font-normal text-gray-500 text-sm">({order.phone})</span></p>
-                    <p className="text-sm text-gray-500 mt-0.5 truncate">{order.product_type} · {order.width_cm}×{order.height_cm}cm · {order.quantity}개</p>
-                    {order.status === '시안 수정 요청' && order.revision_notes && (
-                      <p className="text-xs text-orange-600 mt-1 truncate">✏️ {order.revision_notes}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
+                {tab} <span className="ml-1 opacity-70">({counts[tab] ?? 0})</span>
+              </button>
             ))}
           </div>
-        )}
-      </div>
+
+          {loading ? (
+            <div className="text-center py-16 text-gray-400">불러오는 중...</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">주문이 없습니다.</div>
+          ) : (
+            <div className="space-y-3">
+              {filtered.map(order => (
+                <div
+                  key={order.id}
+                  onClick={() => setSelected(order)}
+                  className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[order.status]}`}>{order.status}</span>
+                        {order.revision_count > 0 && (
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${order.revision_count > 2 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                            {order.revision_count > 2 ? `💰 ${order.revision_count}차 수정` : `${order.revision_count}차 수정`}
+                          </span>
+                        )}
+                        <span className="text-xs text-gray-400">{new Date(order.created_at).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      <p className="font-semibold text-gray-800">{order.customer_name} <span className="font-normal text-gray-500 text-sm">({order.phone})</span></p>
+                      <p className="text-sm text-gray-500 mt-0.5 truncate">{order.product_type} · {order.width_cm}×{order.height_cm}cm · {order.quantity}개</p>
+                      {order.status === '시안 수정 요청' && order.revision_notes && (
+                        <p className="text-xs text-orange-600 mt-1 truncate">✏️ {order.revision_notes}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* 칸반 뷰 */
+        <div className="px-4 py-6 overflow-x-auto">
+          {loading ? (
+            <div className="text-center py-16 text-gray-400">불러오는 중...</div>
+          ) : (
+            <div className="flex gap-4 min-w-max">
+              {ALL_STATUSES.map(status => {
+                const col = orders.filter(o => o.status === status)
+                return (
+                  <div key={status} className="w-64 flex-shrink-0">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_COLORS[status]}`}>{status}</span>
+                      <span className="text-xs text-gray-400 font-medium">{col.length}건</span>
+                    </div>
+                    <div className="space-y-2 min-h-16">
+                      {col.length === 0 ? (
+                        <div className="border-2 border-dashed border-gray-200 rounded-xl h-16 flex items-center justify-center">
+                          <span className="text-xs text-gray-300">없음</span>
+                        </div>
+                      ) : col.map(order => (
+                        <div
+                          key={order.id}
+                          onClick={() => setSelected(order)}
+                          className="bg-white rounded-xl p-3 shadow-sm cursor-pointer hover:shadow-md transition border border-gray-100"
+                        >
+                          <p className="font-semibold text-gray-800 text-sm truncate">{order.customer_name}</p>
+                          <p className="text-xs text-gray-500 truncate mt-0.5">{order.product_type} · {order.quantity}개</p>
+                          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                            {order.revision_count > 0 && (
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${order.revision_count > 2 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                                {order.revision_count > 2 ? `💰${order.revision_count}차` : `${order.revision_count}차 수정`}
+                              </span>
+                            )}
+                            <span className="text-xs text-gray-300">{new Date(order.created_at).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}</span>
+                          </div>
+                          {order.status === '시안 수정 요청' && order.revision_notes && (
+                            <p className="text-xs text-orange-500 mt-1.5 truncate">✏️ {order.revision_notes}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 상세 모달 */}
       {selected && (
