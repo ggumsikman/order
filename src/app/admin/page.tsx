@@ -32,6 +32,8 @@ export default function AdminPage() {
 
   // 시안 업로드 상태
   const [draftUploading, setDraftUploading] = useState(false)
+  const [draftSending, setDraftSending] = useState(false)
+  const [draftUploadError, setDraftUploadError] = useState('')
   const [newDraftUrls, setNewDraftUrls] = useState<string[]>([])
   const [copied, setCopied] = useState(false)
   const [payCopied, setPayCopied] = useState(false)
@@ -58,6 +60,7 @@ export default function AdminPage() {
     setNewDraftUrls([])
     setCopied(false)
     setPayCopied(false)
+    setDraftUploadError('')
     setPaymentLinkInput(selected?.payment_link || '')
   }, [selected?.id, selected?.payment_link])
 
@@ -96,29 +99,56 @@ export default function AdminPage() {
 
   const uploadDraftFiles = async (files: FileList) => {
     setDraftUploading(true)
+    setDraftUploadError('')
     const urls: string[] = []
     try {
       for (const file of Array.from(files)) {
+        if (file.size > 10 * 1024 * 1024) {
+          setDraftUploadError(`"${file.name}" 파일이 너무 큽니다. 10MB 이하만 가능합니다.`)
+          continue
+        }
         const formData = new FormData()
         formData.append('file', file)
         const res = await fetch('/api/upload', { method: 'POST', body: formData })
+        if (!res.ok) {
+          setDraftUploadError('업로드 실패: 서버 오류가 발생했습니다.')
+          continue
+        }
         const result = await res.json()
-        if (result.success) urls.push(result.url)
+        if (result.success) {
+          urls.push(result.url)
+        } else {
+          setDraftUploadError(`업로드 실패: ${result.error || '알 수 없는 오류'}`)
+        }
       }
-      setNewDraftUrls(prev => [...prev, ...urls])
+      if (urls.length > 0) setNewDraftUrls(prev => [...prev, ...urls])
+    } catch {
+      setDraftUploadError('업로드 중 오류가 발생했습니다. 다시 시도해주세요.')
     } finally {
       setDraftUploading(false)
     }
   }
 
   const sendDraft = async () => {
-    if (!selected) return
-    const allDrafts = [...(selected.draft_images || []), ...newDraftUrls]
-    await updateOrder(selected.id, {
-      draft_images: allDrafts,
-      status: '시안 확인 요청중',
-    })
-    setNewDraftUrls([])
+    if (!selected || newDraftUrls.length === 0) return
+    setDraftSending(true)
+    try {
+      const allDrafts = [...(selected.draft_images || []), ...newDraftUrls]
+      const result = await updateOrder(selected.id, {
+        draft_images: allDrafts,
+        status: '시안 확인 요청중',
+      })
+      if (result.success) {
+        setNewDraftUrls([])
+        setDraftUploadError('')
+      } else {
+        alert('시안 발송에 실패했습니다. 다시 시도해주세요.')
+      }
+    } catch {
+      alert('오류가 발생했습니다. 다시 시도해주세요.')
+    } finally {
+      setDraftSending(false)
+    }
   }
 
   const copyReviewLink = (id: string) => {
@@ -344,7 +374,10 @@ export default function AdminPage() {
                 {/* 시안 업로드 + 발송 (작업중 / 시안 수정 작업중) */}
                 {(selected.status === '작업중' || selected.status === '시안 수정 작업중') && (
                   <div className="border border-dashed border-gray-300 rounded-xl p-4 space-y-3">
-                    <p className="text-sm font-medium text-gray-700">시안 이미지 업로드</p>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">시안 이미지 업로드</p>
+                      <p className="text-xs text-gray-400 mt-0.5">이미지 선택 후 &apos;시안 확인 요청 보내기&apos;를 눌러야 고객에게 전달됩니다. (파일당 10MB 이하)</p>
+                    </div>
 
                     {newDraftUrls.length > 0 && (
                       <div className="space-y-2">
@@ -352,7 +385,12 @@ export default function AdminPage() {
                           // eslint-disable-next-line @next/next/no-img-element
                           <img key={i} src={url} alt={`새 시안${i + 1}`} className="w-full rounded-xl border" />
                         ))}
+                        <p className="text-xs text-green-600">✓ {newDraftUrls.length}개 업로드 완료 — 아래 버튼을 눌러 발송하세요</p>
                       </div>
+                    )}
+
+                    {draftUploadError && (
+                      <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{draftUploadError}</p>
                     )}
 
                     <input
@@ -361,22 +399,23 @@ export default function AdminPage() {
                       accept="image/*"
                       multiple
                       className="hidden"
-                      onChange={e => e.target.files && uploadDraftFiles(e.target.files)}
+                      onChange={e => { if (e.target.files) uploadDraftFiles(e.target.files); e.target.value = '' }}
                     />
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={draftUploading}
                       className="w-full py-2 border border-gray-300 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition disabled:opacity-40"
                     >
-                      {draftUploading ? '업로드 중...' : '+ 이미지 선택'}
+                      {draftUploading ? '⏳ 업로드 중...' : '+ 이미지 선택'}
                     </button>
 
                     {newDraftUrls.length > 0 && (
                       <button
                         onClick={sendDraft}
-                        className="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl font-semibold text-sm hover:opacity-90 transition"
+                        disabled={draftSending}
+                        className="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl font-semibold text-sm hover:opacity-90 transition disabled:opacity-60"
                       >
-                        📤 시안 확인 요청 보내기
+                        {draftSending ? '⏳ 발송 중...' : '📤 시안 확인 요청 보내기'}
                       </button>
                     )}
                   </div>
