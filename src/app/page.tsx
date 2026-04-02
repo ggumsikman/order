@@ -100,6 +100,12 @@ export default function OrderPage() {
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
+    const MAX_SIZE = 3 * 1024 * 1024 // 3MB
+    const oversized = files.filter(f => f.size > MAX_SIZE)
+    if (oversized.length > 0) {
+      alert(`이미지 용량은 파일당 3MB 이하만 가능합니다.\n(초과 파일: ${oversized.map(f => f.name).join(', ')})`)
+      return
+    }
     if (images.length + files.length > 5) {
       alert('이미지는 최대 5장까지 업로드 가능합니다.')
       return
@@ -140,11 +146,19 @@ export default function OrderPage() {
     try {
       const imageUrls: string[] = []
       for (const image of images) {
-        const formData = new FormData()
-        formData.append('file', image)
-        const res = await fetch('/api/upload', { method: 'POST', body: formData })
-        const result = await res.json()
-        if (result.success) imageUrls.push(result.url)
+        try {
+          const formData = new FormData()
+          formData.append('file', image)
+          const res = await fetch('/api/upload', { method: 'POST', body: formData })
+          if (res.ok) {
+            const result = await res.json()
+            if (result.success) imageUrls.push(result.url)
+          } else {
+            console.error('이미지 업로드 실패:', res.status, res.statusText)
+          }
+        } catch (uploadErr) {
+          console.error('이미지 업로드 오류:', uploadErr)
+        }
       }
 
       const firstItem = items[0]
