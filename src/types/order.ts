@@ -3,6 +3,7 @@ export interface OrderItem {
   design_type: string
   design_name?: string
   design_sub_name?: string
+  handwriting_change?: boolean
   width_cm: number | null
   height_cm: number | null
   quantity: number

@@ -26,6 +26,7 @@ interface ItemForm {
   design_type: string
   design_name: string
   design_sub_name: string
+  handwriting_change: boolean
   width_cm: string
   height_cm: string
   quantity: string
@@ -38,6 +39,7 @@ const defaultItem = (): ItemForm => ({
   design_type: '',
   design_name: '',
   design_sub_name: '',
+  handwriting_change: false,
   width_cm: '',
   height_cm: '',
   quantity: '1',
@@ -171,6 +173,7 @@ export default function OrderPage() {
         design_type: item.design_type,
         design_name: item.design_name,
         design_sub_name: item.design_sub_name,
+        handwriting_change: item.handwriting_change,
         width_cm: parseFloat(item.width_cm) || null,
         height_cm: parseFloat(item.height_cm) || null,
         quantity: parseInt(item.quantity),
@@ -305,6 +308,22 @@ export default function OrderPage() {
                         className={inputClass()}
                       />
                     </Field>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                      <p className="text-sm font-medium text-amber-800 mb-1">손글씨 문구 변경 여부</p>
+                      <p className="text-xs text-amber-700 mb-3">기본 디자인의 손글씨 문구를 변경하실 경우 <span className="font-semibold">추가금 5,000원</span>이 발생합니다. 변경하지 않으시면 추가금이 없습니다.</p>
+                      <div className="flex gap-3">
+                        {[
+                          { value: false, label: '변경 없음', sub: '추가금 없음' },
+                          { value: true, label: '변경 원함', sub: '+5,000원' },
+                        ].map(opt => (
+                          <label key={String(opt.value)} className={`flex-1 border rounded-xl py-3 text-center text-sm cursor-pointer transition ${item.handwriting_change === opt.value ? 'bg-amber-500 border-amber-500 text-white font-semibold' : 'border-amber-300 text-amber-800 hover:border-amber-400 bg-white'}`}>
+                            <input type="radio" className="hidden" checked={item.handwriting_change === opt.value} onChange={() => setItems(prev => prev.map((it, i) => i === index ? { ...it, handwriting_change: opt.value } : it))} />
+                            <div>{opt.label}</div>
+                            <div className={`text-xs mt-0.5 ${item.handwriting_change === opt.value ? 'text-amber-100' : 'text-amber-600'}`}>{opt.sub}</div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   </>
                 )}
                 <div>

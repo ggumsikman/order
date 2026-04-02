@@ -308,6 +308,9 @@ export default function AdminPage() {
                       {selected.items!.length > 1 && <p className="text-xs text-gray-400 mb-1 font-medium">항목 {i + 1}</p>}
                       <p className="text-gray-800 font-medium">{item.product_type}</p>
                       <p className="text-gray-500">{item.design_type}{item.design_name ? ` · ${item.design_name}` : ''}{item.design_sub_name ? ` > ${item.design_sub_name}` : ''} · {item.width_cm}×{item.height_cm}cm · {item.quantity}개</p>
+                      {item.handwriting_change && (
+                        <p className="text-amber-600 text-xs mt-0.5 font-semibold">✍️ 손글씨 문구 변경 요청 (+5,000원)</p>
+                      )}
                       {item.finishing?.length > 0 && (
                         <p className="text-pink-600 text-xs mt-0.5">후가공: {item.finishing.join(', ')}</p>
                       )}
