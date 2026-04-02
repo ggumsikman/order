@@ -370,6 +370,16 @@ export default function AdminPage() {
                 </div>
               )}
 
+              {/* 파일 input (항상 DOM에 존재해야 함) */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={e => { if (e.target.files) uploadDraftFiles(e.target.files); e.target.value = '' }}
+              />
+
               {/* === 액션 영역 === */}
               <div className="pt-2 space-y-3">
 
@@ -395,14 +405,6 @@ export default function AdminPage() {
                       <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{draftUploadError}</p>
                     )}
 
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={e => { if (e.target.files) uploadDraftFiles(e.target.files); e.target.value = '' }}
-                    />
                     {newDraftUrls.length === 0 && (
                       <button
                         onClick={() => fileInputRef.current?.click()}
