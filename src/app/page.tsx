@@ -207,9 +207,9 @@ export default function OrderPage() {
         <h1 className="text-2xl font-bold">일비롱디자인</h1>
         <p className="mt-1 text-pink-100 text-sm">주문서 작성</p>
         <div className="mt-4 flex flex-col items-center gap-1 text-xs text-pink-100">
-          <p>📞 010-2255-8195</p>
-          <p>🕐 평일 09:00 – 18:00 (주말·공휴일 휴무)</p>
-          <p>📍 경기도 시흥시 마유로 446번길 45, 2층</p>
+          <p>🕐 영업시간 예) 평일 09:00 – 18:00</p>
+          <p>📍 주소 예) 경기도 OO시 OO로 00</p>
+          <p>📞 상담전화 예) 010-0000-0000</p>
         </div>
       </div>
 
