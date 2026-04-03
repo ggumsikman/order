@@ -127,6 +127,10 @@ interface ItemForm {
   height_cm: string
   quantity: string
   finishing: string[]
+  text_top: string
+  text_main: string
+  text_bottom: string
+  text_corrections: string
 }
 
 const defaultItem = (): ItemForm => ({
@@ -140,19 +144,21 @@ const defaultItem = (): ItemForm => ({
   height_cm: '',
   quantity: '1',
   finishing: [],
+  text_top: '',
+  text_main: '',
+  text_bottom: '',
+  text_corrections: '',
 })
 
 export default function OrderPage() {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const [privacyAgreed, setPrivacyAgreed] = useState(false)
+
   const [form, setForm] = useState({
     customer_name: '',
     phone: '',
-    text_top: '',
-    text_main: '',
-    text_bottom: '',
-    text_corrections: '',
     needs_statement: false,
     statement_email: '',
     shipping_address: '',
@@ -272,6 +278,10 @@ export default function OrderPage() {
         height_cm: parseFloat(item.height_cm) || null,
         quantity: parseInt(item.quantity),
         finishing: item.finishing,
+        text_top: item.text_top,
+        text_main: item.text_main,
+        text_bottom: item.text_bottom,
+        text_corrections: item.text_corrections,
       }))
 
       const res = await fetch('/api/orders', {
@@ -577,7 +587,38 @@ export default function OrderPage() {
                       ))}
                     </div>
                   )}
+                {/* 문구 내용 */}
+                <div className="pt-4 border-t border-gray-100">
+                  <p className="text-sm font-bold text-gray-800 mb-3">
+                    문구 내용 <span className="text-xs font-normal text-gray-400">(선택)</span>
+                  </p>
+                  <div className="mb-3 rounded-xl overflow-hidden border border-gray-200">
+                    <Image
+                      src="/banner-example.jpg"
+                      alt="현수막 문구 위치 예시"
+                      width={600}
+                      height={250}
+                      className="w-full h-auto"
+                    />
+                    <p className="text-xs text-gray-400 text-center py-1.5 bg-gray-50">현수막 문구 위치 예시</p>
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-xs text-gray-400">기본 디자인의 문구를 변경하거나, 새로 입력할 내용을 적어주세요.</p>
+                    <Field label="상단 문구">
+                      <input value={item.text_top} onChange={e => updateItem(index, 'text_top', e.target.value)} placeholder="예) 초록 말풍선 - ❤지구를 지켜요❤" className={inputClass()} />
+                    </Field>
+                    <Field label="메인 문구">
+                      <input value={item.text_main} onChange={e => updateItem(index, 'text_main', e.target.value)} placeholder="예) 지구를 구하는 초록 이야기" className={inputClass()} />
+                    </Field>
+                    <Field label="기관명">
+                      <input value={item.text_bottom} onChange={e => updateItem(index, 'text_bottom', e.target.value)} placeholder="예) 일비롱어린이집" className={inputClass()} />
+                    </Field>
+                    <Field label="기타 문구 수정사항">
+                      <textarea value={item.text_corrections} onChange={e => updateItem(index, 'text_corrections', e.target.value)} placeholder="위 항목 외 추가 변경사항을 자유롭게 적어주세요." rows={2} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none" />
+                    </Field>
+                  </div>
                 </div>
+
               </div>
             </div>
           ))}
@@ -590,35 +631,6 @@ export default function OrderPage() {
           >
             + 주문 항목 추가
           </button>
-
-          <div className="bg-white rounded-2xl p-5 shadow-sm">
-            <h2 className="font-bold text-gray-800 mb-4 text-base">문구 내용 (선택)</h2>
-            <div className="mb-4 rounded-xl overflow-hidden border border-gray-200">
-              <Image
-                src="/banner-example.jpg"
-                alt="현수막 문구 위치 예시"
-                width={600}
-                height={250}
-                className="w-full h-auto"
-              />
-              <p className="text-xs text-gray-400 text-center py-1.5 bg-gray-50">현수막 문구 위치 예시</p>
-            </div>
-            <div className="space-y-4">
-              <p className="text-xs text-gray-500 -mt-2">기본 디자인의 문구를 변경하거나, 새로 입력할 내용을 적어주세요.</p>
-              <Field label="상단 문구">
-                <input name="text_top" value={form.text_top} onChange={handleChange} placeholder="예) 초록 말풍선 - ❤지구를 지켜요❤" className={inputClass()} />
-              </Field>
-              <Field label="메인 문구">
-                <input name="text_main" value={form.text_main} onChange={handleChange} placeholder="예) 지구를 구하는 초록 이야기" className={inputClass()} />
-              </Field>
-              <Field label="기관명">
-                <input name="text_bottom" value={form.text_bottom} onChange={handleChange} placeholder="예) 일비롱어린이집" className={inputClass()} />
-              </Field>
-              <Field label="기타 문구 수정사항">
-                <textarea name="text_corrections" value={form.text_corrections} onChange={handleChange} placeholder="위 항목 외 추가 변경사항을 자유롭게 적어주세요." rows={2} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none" />
-              </Field>
-            </div>
-          </div>
 
           <Section title="배송 및 결제">
             <Field label="배송주소" required error={errors.shipping_address}>
@@ -773,7 +785,32 @@ export default function OrderPage() {
             </div>
           )}
 
-          <button type="submit" disabled={isSubmitting} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-4 rounded-xl font-bold text-base hover:opacity-90 transition disabled:opacity-60">
+          {/* 개인정보 동의 */}
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={privacyAgreed}
+                onChange={e => setPrivacyAgreed(e.target.checked)}
+                className="w-4 h-4 mt-0.5 accent-pink-500 shrink-0"
+              />
+              <span className="text-sm text-gray-700 leading-relaxed">
+                <span className="font-semibold text-gray-900">[필수] 개인정보 수집·이용에 동의합니다.</span>
+                <br />
+                <span className="text-xs text-gray-400">수집항목: 기관명, 연락처, 배송주소 / 이용목적: 주문 접수 및 배송 / 보유기간: 거래 완료 후 3년</span>
+              </span>
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting || !privacyAgreed}
+            className={`w-full py-4 rounded-xl font-bold text-base transition ${
+              privacyAgreed
+                ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:opacity-90'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            } disabled:opacity-60`}
+          >
             {isSubmitting ? '접수 중...' : '주문 접수하기'}
           </button>
         </form>
