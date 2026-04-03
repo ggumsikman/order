@@ -116,6 +116,43 @@ const DESIGN_TYPES = ['기본 디자인 선택', '맞춤 디자인 요청', '직
 const PAYMENT_METHODS = ['계좌이체', '카드결제']
 const FINISHING_OPTIONS = ['열재단', '아일렛타공', '각목마감']
 
+// 현수막 가격 계산 (ilbirong 견적 계산기 로직)
+const BANNER_FINISHING_PRICES: Record<string, number> = {
+  '열재단': 0, '아일렛타공': 2000, '아일렛타공+큐방': 4000,
+  '끈고리가공': 4000, '막대가공': 5000, '봉미싱': 1000,
+  '로프(3m)': 1000, '원형겔양면테이프': 1000,
+}
+
+function calcBannerBasePrice(widthCm: number, heightCm: number): number {
+  if (widthCm <= 0 || heightCm <= 0) return 0
+  const S = Math.min(widthCm, heightCm)
+  const L = Math.max(widthCm, heightCm)
+  const rates = [
+    { h: 30, rate: 33 }, { h: 40, rate: 34 }, { h: 50, rate: 35 },
+    { h: 60, rate: 38 }, { h: 70, rate: 40 }, { h: 80, rate: 42 },
+    { h: 90, rate: 44 }, { h: 100, rate: 68 }, { h: 110, rate: 70 },
+    { h: 120, rate: 73 }, { h: 130, rate: 76 }, { h: 140, rate: 78 },
+    { h: 150, rate: 90 }, { h: 160, rate: 92 }, { h: 170, rate: 94 },
+    { h: 180, rate: 94 }, { h: 190, rate: 136 }, { h: 200, rate: 140 },
+  ]
+  const effectiveLong = Math.max(Math.ceil(L / 50) * 50, 100)
+  let rate = rates[0].rate
+  if (S > rates[rates.length - 1].h) {
+    rate = 0.72 * S - 4
+  } else {
+    for (let i = 0; i < rates.length - 1; i++) {
+      if (S >= rates[i].h && S <= rates[i + 1].h) {
+        const t = (S - rates[i].h) / (rates[i + 1].h - rates[i].h)
+        rate = rates[i].rate + t * (rates[i + 1].rate - rates[i].rate)
+        break
+      }
+    }
+  }
+  let rawCost = rate * effectiveLong + 2000
+  if (S < 30) rawCost += 1400
+  return Math.round(Math.max(rawCost * 1.55, 5000) / 100) * 100
+}
+
 interface ItemForm {
   product_type: string
   banner_type: string
@@ -590,6 +627,49 @@ export default function OrderPage() {
                     </div>
                   )}
                 </div>
+
+                {/* 현수막 예상 견적 */}
+                {item.product_type === '현수막' && (() => {
+                  const w = parseFloat(item.width_cm), h = parseFloat(item.height_cm)
+                  if (!w || !h) return null
+                  const basePrice = calcBannerBasePrice(w, h)
+                  const widthM = Math.ceil(w / 100)
+                  const finishingCosts = item.finishing
+                    .map(f => ({ label: f, price: f === '사방줄미싱' ? 2000 * widthM : (BANNER_FINISHING_PRICES[f] ?? 0) }))
+                    .filter(f => f.price > 0)
+                  const finishingTotal = finishingCosts.reduce((s, f) => s + f.price, 0)
+                  const qty = parseInt(item.quantity) || 1
+                  const perUnit = basePrice + finishingTotal
+                  const total = perUnit * qty
+                  return (
+                    <div className="bg-pink-50 border border-pink-200 rounded-xl p-4">
+                      <p className="text-sm font-bold text-pink-800 mb-3">💰 예상 견적</p>
+                      <div className="space-y-1.5 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">현수막 인쇄비 ({w}×{h}cm)</span>
+                          <span className="font-medium">{basePrice.toLocaleString()}원</span>
+                        </div>
+                        {finishingCosts.map(f => (
+                          <div key={f.label} className="flex justify-between">
+                            <span className="text-gray-600">{f.label}</span>
+                            <span className="font-medium">+{f.price.toLocaleString()}원</span>
+                          </div>
+                        ))}
+                        {qty > 1 && (
+                          <div className="flex justify-between text-gray-400 text-xs pt-0.5">
+                            <span>1장 소계</span>
+                            <span>{perUnit.toLocaleString()}원</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between border-t border-pink-200 pt-2 mt-1">
+                          <span className="font-bold text-pink-800">{qty}장 합계</span>
+                          <span className="font-bold text-pink-600 text-base">{total.toLocaleString()}원</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-2.5">※ 예상 금액으로, 실제 견적은 주문 확인 후 안내드립니다.</p>
+                    </div>
+                  )
+                })()}
 
                 {/* 문구 내용 */}
                 <div className="pt-4 border-t border-gray-100">

@@ -74,3 +74,14 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS text_bottom TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS needs_statement BOOLEAN DEFAULT false;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS statement_email TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_address_detail TEXT;
+
+-- =============================================
+-- 마이그레이션: 결제 대기중 상태 + 최종 금액 + 시안 이력
+-- Supabase 대시보드 > SQL Editor에서 실행하세요
+-- =============================================
+ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
+ALTER TABLE orders ADD CONSTRAINT orders_status_check
+  CHECK (status IN ('접수', '작업중', '시안 확인 요청중', '시안 수정 요청', '시안 수정 작업중', '시안 확정', '결제 대기중', '완료', '취소'));
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS final_price INTEGER;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS draft_history JSONB DEFAULT '[]';

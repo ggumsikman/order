@@ -6,7 +6,7 @@ import { Order, OrderItem, OrderStatus, DraftRevision } from '@/types/order'
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || '1234'
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://ilbirong.vercel.app'
 
-const ALL_STATUSES: OrderStatus[] = ['접수', '작업중', '시안 확인 요청중', '시안 수정 요청', '시안 수정 작업중', '시안 확정', '완료', '취소']
+const ALL_STATUSES: OrderStatus[] = ['접수', '작업중', '시안 확인 요청중', '시안 수정 요청', '시안 수정 작업중', '시안 확정', '결제 대기중', '완료', '취소']
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
   '접수': 'bg-blue-100 text-blue-700',
@@ -15,11 +15,57 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
   '시안 수정 요청': 'bg-orange-100 text-orange-700',
   '시안 수정 작업중': 'bg-pink-100 text-pink-700',
   '시안 확정': 'bg-teal-100 text-teal-700',
+  '결제 대기중': 'bg-indigo-100 text-indigo-700',
   '완료': 'bg-green-100 text-green-700',
   '취소': 'bg-gray-100 text-gray-500',
 }
 
-const FILTER_TABS = ['전체', '접수', '작업중', '시안 확인 요청중', '시안 수정 요청', '시안 수정 작업중', '시안 확정', '완료', '취소'] as const
+const FILTER_TABS = ['전체', '접수', '작업중', '시안 확인 요청중', '시안 수정 요청', '시안 수정 작업중', '시안 확정', '결제 대기중', '완료', '취소'] as const
+
+// 은행 계좌 정보 (환경변수로 관리)
+const BANK_INFO = {
+  name: process.env.NEXT_PUBLIC_BANK_NAME || '(은행명)',
+  account: process.env.NEXT_PUBLIC_BANK_ACCOUNT || '(계좌번호)',
+  owner: process.env.NEXT_PUBLIC_BANK_OWNER || '일비롱디자인',
+}
+
+// 현수막 가격 계산 (주문서와 동일한 로직)
+function calcBannerBasePrice(widthCm: number, heightCm: number): number {
+  if (widthCm <= 0 || heightCm <= 0) return 0
+  const S = Math.min(widthCm, heightCm)
+  const L = Math.max(widthCm, heightCm)
+  const rates = [
+    { h: 30, rate: 33 }, { h: 40, rate: 34 }, { h: 50, rate: 35 },
+    { h: 60, rate: 38 }, { h: 70, rate: 40 }, { h: 80, rate: 42 },
+    { h: 90, rate: 44 }, { h: 100, rate: 68 }, { h: 110, rate: 70 },
+    { h: 120, rate: 73 }, { h: 130, rate: 76 }, { h: 140, rate: 78 },
+    { h: 150, rate: 90 }, { h: 160, rate: 92 }, { h: 170, rate: 94 },
+    { h: 180, rate: 94 }, { h: 190, rate: 136 }, { h: 200, rate: 140 },
+  ]
+  const FINISHING_P: Record<string, number> = {
+    '아일렛타공': 2000, '아일렛타공+큐방': 4000, '끈고리가공': 4000,
+    '막대가공': 5000, '봉미싱': 1000, '로프(3m)': 1000, '원형겔양면테이프': 1000,
+  }
+  const effectiveLong = Math.max(Math.ceil(L / 50) * 50, 100)
+  let rate = rates[0].rate
+  if (S > rates[rates.length - 1].h) {
+    rate = 0.72 * S - 4
+  } else {
+    for (let i = 0; i < rates.length - 1; i++) {
+      if (S >= rates[i].h && S <= rates[i + 1].h) {
+        const t = (S - rates[i].h) / (rates[i + 1].h - rates[i].h)
+        rate = rates[i].rate + t * (rates[i + 1].rate - rates[i].rate)
+        break
+      }
+    }
+  }
+  let rawCost = rate * effectiveLong + 2000
+  if (S < 30) rawCost += 1400
+  const base = Math.round(Math.max(rawCost * 1.55, 5000) / 100) * 100
+  return base
+  // Note: FINISHING_P is defined here for potential future use in admin calculations
+  void FINISHING_P
+}
 
 export default function AdminPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -40,6 +86,8 @@ export default function AdminPage() {
   const [copied, setCopied] = useState(false)
   const [payCopied, setPayCopied] = useState(false)
   const [paymentLinkInput, setPaymentLinkInput] = useState('')
+  const [finalPriceInput, setFinalPriceInput] = useState('')
+  const [quoteCopied, setQuoteCopied] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchOrders = useCallback(async () => {
@@ -62,10 +110,12 @@ export default function AdminPage() {
     setNewDraftUrls([])
     setCopied(false)
     setPayCopied(false)
+    setQuoteCopied(false)
     setDraftUploadError('')
     setReplacingDraft(false)
     setPaymentLinkInput(selected?.payment_link || '')
-  }, [selected?.id, selected?.payment_link])
+    setFinalPriceInput(selected?.final_price?.toString() || '')
+  }, [selected?.id, selected?.payment_link, selected?.final_price])
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -173,6 +223,44 @@ export default function AdminPage() {
   const savePaymentLink = async () => {
     if (!selected) return
     await updateOrder(selected.id, { payment_link: paymentLinkInput.trim() || null } as Partial<Order>)
+  }
+
+  const sendQuote = async () => {
+    if (!selected) return
+    const price = parseInt(finalPriceInput)
+    if (!price || price <= 0) { alert('최종 금액을 입력해주세요.'); return }
+    await updateOrder(selected.id, {
+      final_price: price,
+      payment_link: selected.payment_method === '카드결제' ? (paymentLinkInput.trim() || null) : selected.payment_link,
+      status: '결제 대기중',
+    } as Partial<Order>)
+  }
+
+  const copyQuoteMessage = () => {
+    if (!selected) return
+    const price = parseInt(finalPriceInput) || selected.final_price || 0
+    let msg = `[일비롱디자인 결제 안내]\n\n안녕하세요 ${selected.customer_name}님!\n주문하신 내역의 견적이 확정되었습니다.\n\n[결제 금액]\n${price.toLocaleString()}원\n\n`
+    if (selected.payment_method === '카드결제') {
+      const link = paymentLinkInput || selected.payment_link || ''
+      msg += `[결제 방법] 카드결제\n${link ? `결제 링크: ${link}` : '결제 링크를 곧 전달드리겠습니다.'}\n`
+    } else {
+      msg += `[결제 방법] 계좌이체\n은행: ${BANK_INFO.name}\n계좌번호: ${BANK_INFO.account}\n예금주: ${BANK_INFO.owner}\n\n입금 확인 후 제작을 시작하겠습니다.`
+    }
+    msg += `\n\n감사합니다! 💛 일비롱디자인`
+    navigator.clipboard.writeText(msg)
+    setQuoteCopied(true)
+    setTimeout(() => setQuoteCopied(false), 2000)
+  }
+
+  const calcEstimateFromItems = (order: Order): number => {
+    if (!order.items || order.items.length === 0) return 0
+    return order.items.reduce((total, item) => {
+      if (item.product_type === '현수막' && item.width_cm && item.height_cm) {
+        const base = calcBannerBasePrice(item.width_cm, item.height_cm)
+        return total + base * item.quantity
+      }
+      return total
+    }, 0)
   }
 
   const filtered = filter === '전체' ? orders : orders.filter(o => o.status === filter)
@@ -613,52 +701,111 @@ export default function AdminPage() {
                   </button>
                 )}
 
-                {/* 시안 확정 → 완료 */}
-                {selected.status === '시안 확정' && (
-                  <button
-                    onClick={() => updateOrder(selected.id, { status: '완료' })}
-                    className="w-full py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl font-semibold text-sm hover:opacity-90 transition"
-                  >
-                    ✅ 생산 완료 처리
-                  </button>
-                )}
+                {/* 시안 확정 → 견적 확정 및 결제 안내 */}
+                {selected.status === '시안 확정' && (() => {
+                  const estimate = calcEstimateFromItems(selected)
+                  return (
+                    <div className="border border-teal-200 bg-teal-50 rounded-xl p-4 space-y-3">
+                      <p className="text-sm font-bold text-teal-800">📋 견적 확정 및 결제 안내</p>
 
-                {/* 카드결제 링크 관리 */}
-                {selected.payment_method === '카드결제' && (
-                  <div className="border border-blue-200 bg-blue-50 rounded-xl p-4 space-y-3">
-                    <p className="text-sm font-medium text-blue-800">💳 카드 결제 링크</p>
-                    <div className="flex gap-2">
-                      <input
-                        value={paymentLinkInput}
-                        onChange={e => setPaymentLinkInput(e.target.value)}
-                        placeholder="결제 링크 URL을 붙여넣으세요"
-                        className="flex-1 text-xs bg-white border border-blue-300 rounded-lg px-3 py-2 text-gray-700 focus:outline-none"
-                      />
-                      <button
-                        onClick={savePaymentLink}
-                        className="px-3 py-2 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition whitespace-nowrap"
-                      >
-                        저장
-                      </button>
-                    </div>
-                    {selected.payment_link && (
-                      <div className="space-y-2">
-                        <p className="text-xs text-blue-700">고객 결제 페이지 링크를 복사해서 전달하세요.</p>
-                        <div className="flex gap-2">
+                      {estimate > 0 && !finalPriceInput && (
+                        <div className="bg-white border border-teal-200 rounded-lg px-3 py-2">
+                          <p className="text-xs text-teal-700">예상 견적 (현수막 기준): <span className="font-bold">{estimate.toLocaleString()}원</span></p>
+                          <button onClick={() => setFinalPriceInput(estimate.toString())} className="text-xs text-teal-600 underline mt-0.5">이 금액으로 채우기</button>
+                        </div>
+                      )}
+
+                      <div>
+                        <p className="text-xs text-gray-600 mb-1">최종 견적 금액 <span className="text-red-400">*</span></p>
+                        <div className="flex gap-2 items-center">
                           <input
-                            readOnly
-                            value={`${BASE_URL}/pay/${selected.id}`}
-                            className="flex-1 text-xs bg-white border border-blue-300 rounded-lg px-3 py-2 text-gray-600"
+                            type="number"
+                            value={finalPriceInput}
+                            onChange={e => setFinalPriceInput(e.target.value)}
+                            placeholder="금액 입력 (원)"
+                            className="flex-1 text-sm bg-white border border-teal-300 rounded-lg px-3 py-2 focus:outline-none"
                           />
-                          <button
-                            onClick={() => copyPayLink(selected.id)}
-                            className="px-3 py-2 bg-blue-400 text-white rounded-lg text-xs font-medium hover:bg-blue-500 transition whitespace-nowrap"
-                          >
-                            {payCopied ? '복사됨 ✓' : '복사'}
-                          </button>
+                          <span className="text-sm text-gray-600 shrink-0">원</span>
                         </div>
                       </div>
+
+                      {selected.payment_method === '카드결제' && (
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">사이다페이 결제 링크</p>
+                          <div className="flex gap-2">
+                            <input
+                              value={paymentLinkInput}
+                              onChange={e => setPaymentLinkInput(e.target.value)}
+                              placeholder="사이다페이 링크 붙여넣기"
+                              className="flex-1 text-xs bg-white border border-teal-300 rounded-lg px-3 py-2 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={copyQuoteMessage}
+                        className="w-full py-2.5 border border-teal-400 text-teal-700 rounded-xl text-sm font-medium hover:bg-teal-100 transition"
+                      >
+                        {quoteCopied ? '✓ 복사됨' : '📋 결제 안내 메시지 복사 (카톡 전송용)'}
+                      </button>
+
+                      <button
+                        onClick={sendQuote}
+                        className="w-full py-3 bg-gradient-to-r from-teal-500 to-indigo-500 text-white rounded-xl font-semibold text-sm hover:opacity-90 transition"
+                      >
+                        결제 대기로 이동 →
+                      </button>
+                    </div>
+                  )
+                })()}
+
+                {/* 결제 대기중 → 결제 완료 확인 */}
+                {selected.status === '결제 대기중' && (
+                  <div className="border border-indigo-200 bg-indigo-50 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold text-indigo-800">💰 결제 대기중</p>
+                      {selected.final_price && (
+                        <span className="text-sm font-bold text-indigo-700">{selected.final_price.toLocaleString()}원</span>
+                      )}
+                    </div>
+
+                    {selected.payment_method === '카드결제' ? (
+                      <div className="space-y-2">
+                        <p className="text-xs text-indigo-700">카드결제 — 사이다페이 링크 전송</p>
+                        {selected.payment_link && (
+                          <div className="flex gap-2">
+                            <input readOnly value={selected.payment_link} className="flex-1 text-xs bg-white border border-indigo-200 rounded-lg px-3 py-2 text-gray-600" />
+                          </div>
+                        )}
+                        {selected.payment_link && (
+                          <div className="flex gap-2">
+                            <input readOnly value={`${BASE_URL}/pay/${selected.id}`} className="flex-1 text-xs bg-white border border-indigo-200 rounded-lg px-3 py-2 text-gray-600" />
+                            <button onClick={() => copyPayLink(selected.id)} className="px-3 py-2 bg-indigo-400 text-white rounded-lg text-xs font-medium hover:bg-indigo-500 transition whitespace-nowrap">
+                              {payCopied ? '복사됨 ✓' : '복사'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-xs text-indigo-700">계좌이체 — 입금 대기중</p>
+                        <div className="bg-white border border-indigo-200 rounded-lg px-3 py-2 text-xs text-gray-700 space-y-0.5">
+                          <p>{BANK_INFO.name} {BANK_INFO.account} ({BANK_INFO.owner})</p>
+                          {selected.final_price && <p className="font-bold text-indigo-700">입금 금액: {selected.final_price.toLocaleString()}원</p>}
+                        </div>
+                        <button onClick={copyQuoteMessage} className="w-full py-2 border border-indigo-300 text-indigo-700 rounded-xl text-xs hover:bg-indigo-100 transition">
+                          {quoteCopied ? '✓ 복사됨' : '📋 결제 안내 메시지 재복사'}
+                        </button>
+                      </div>
                     )}
+
+                    <button
+                      onClick={() => updateOrder(selected.id, { status: '완료' })}
+                      className="w-full py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl font-semibold text-sm hover:opacity-90 transition"
+                    >
+                      ✅ 결제 확인 → 제작 완료
+                    </button>
                   </div>
                 )}
 

@@ -17,6 +17,7 @@ export type OrderStatus =
   | '시안 수정 요청'
   | '시안 수정 작업중'
   | '시안 확정'
+  | '결제 대기중'
   | '완료'
   | '취소'
 
@@ -49,6 +50,7 @@ export interface Order {
   email: string | null
   card_phone: string | null
   payment_link: string | null
+  final_price: number | null
   items: OrderItem[] | null
   other_requests: string
   image_urls: string[]
