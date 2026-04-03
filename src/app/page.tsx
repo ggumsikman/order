@@ -15,14 +15,21 @@ declare global {
   }
 }
 
-const PRODUCT_TYPES = ['현수막', '포멕스 A4', '포멕스 A3', '포멕스 (직접입력)', '실사출력', '기타']
+const PRODUCT_TYPES = [
+  { id: '현수막',    emoji: '🪧', desc: '야외·실내 행사용' },
+  { id: '배너',      emoji: '🖼️', desc: '스탠드·벽걸이형' },
+  { id: '어깨띠',   emoji: '🎀', desc: '입학·졸업·행사용' },
+  { id: '환경구성판', emoji: '🌈', desc: '교실·복도 환경판' },
+  { id: '포토판넬',  emoji: '📸', desc: '포토존·기념촬영' },
+  { id: '명찰',      emoji: '🏷️', desc: '이름표·목걸이형' },
+  { id: '팻말',      emoji: '📋', desc: '안내·좌석 팻말' },
+]
 const DESIGN_TYPES = ['기본 디자인 선택', '맞춤 디자인 요청', '직접 파일 제공']
 const PAYMENT_METHODS = ['계좌이체', '카드결제']
 const FINISHING_OPTIONS = ['열재단', '아일렛타공', '각목마감']
 
 interface ItemForm {
   product_type: string
-  product_type_custom: string
   design_type: string
   design_name: string
   design_sub_name: string
@@ -35,7 +42,6 @@ interface ItemForm {
 
 const defaultItem = (): ItemForm => ({
   product_type: '',
-  product_type_custom: '',
   design_type: '',
   design_name: '',
   design_sub_name: '',
@@ -127,7 +133,6 @@ export default function OrderPage() {
     if (!form.phone.trim()) newErrors.phone = '연락처를 입력해주세요.'
     items.forEach((item, i) => {
       if (!item.product_type) newErrors[`item_${i}_product_type`] = '제품 종류를 선택해주세요.'
-      if (item.product_type === '포멕스 (직접입력)' && !item.product_type_custom.trim()) newErrors[`item_${i}_product_type_custom`] = '제품 종류를 입력해주세요.'
       if (!item.design_type) newErrors[`item_${i}_design_type`] = '디자인 방식을 선택해주세요.'
       if (!item.width_cm) newErrors[`item_${i}_width_cm`] = '가로 사이즈를 입력해주세요.'
       if (!item.height_cm) newErrors[`item_${i}_height_cm`] = '세로 사이즈를 입력해주세요.'
@@ -164,12 +169,10 @@ export default function OrderPage() {
       }
 
       const firstItem = items[0]
-      const productType = firstItem.product_type === '포멕스 (직접입력)'
-        ? firstItem.product_type_custom
-        : firstItem.product_type
+      const productType = firstItem.product_type
 
       const orderItems = items.map(item => ({
-        product_type: item.product_type === '포멕스 (직접입력)' ? item.product_type_custom : item.product_type,
+        product_type: item.product_type,
         design_type: item.design_type,
         design_name: item.design_name,
         design_sub_name: item.design_sub_name,
@@ -272,17 +275,38 @@ export default function OrderPage() {
                 )}
               </div>
               <div className="space-y-4">
-                <Field label="제품 종류" required error={errors[`item_${index}_product_type`]}>
-                  <select value={item.product_type} onChange={e => updateItem(index, 'product_type', e.target.value)} className={inputClass(errors[`item_${index}_product_type`])}>
-                    <option value="">선택해주세요</option>
-                    {PRODUCT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </Field>
-                {item.product_type === '포멕스 (직접입력)' && (
-                  <Field label="제품 종류 직접 입력" required error={errors[`item_${index}_product_type_custom`]}>
-                    <input value={item.product_type_custom} onChange={e => updateItem(index, 'product_type_custom', e.target.value)} placeholder="예) 포멕스 B4" className={inputClass(errors[`item_${index}_product_type_custom`])} />
-                  </Field>
-                )}
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">
+                    제품 종류 <span className="text-pink-500">*</span>
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {PRODUCT_TYPES.map(pt => {
+                      const selected = item.product_type === pt.id
+                      return (
+                        <button
+                          key={pt.id}
+                          type="button"
+                          onClick={() => updateItem(index, 'product_type', selected ? '' : pt.id)}
+                          className={`flex items-center gap-2.5 px-3 py-3 rounded-xl border text-left transition ${
+                            selected
+                              ? 'bg-pink-500 border-pink-500 text-white'
+                              : 'border-gray-200 bg-white text-gray-700 hover:border-pink-300'
+                          }`}
+                        >
+                          <span className="text-xl leading-none">{pt.emoji}</span>
+                          <div>
+                            <p className={`text-sm font-semibold leading-tight ${selected ? 'text-white' : 'text-gray-800'}`}>{pt.id}</p>
+                            <p className={`text-xs mt-0.5 ${selected ? 'text-pink-100' : 'text-gray-400'}`}>{pt.desc}</p>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {errors[`item_${index}_product_type`] && (
+                    <p className="text-red-500 text-xs mt-1">{errors[`item_${index}_product_type`]}</p>
+                  )}
+                  {/* TODO: 카테고리별 세부 옵션 (다음 단계) */}
+                </div>
                 <Field label="디자인 방식" required error={errors[`item_${index}_design_type`]}>
                   <select value={item.design_type} onChange={e => updateItem(index, 'design_type', e.target.value)} className={inputClass(errors[`item_${index}_design_type`])}>
                     <option value="">선택해주세요</option>
@@ -521,7 +545,7 @@ export default function OrderPage() {
               <h2 className="font-bold text-gray-800 mb-3 text-base">주문 요약</h2>
               <div className="space-y-2">
                 {items.filter(item => item.product_type).map((item, i) => {
-                  const name = item.product_type === '포멕스 (직접입력)' ? item.product_type_custom || '포멕스' : item.product_type
+                  const name = item.product_type
                   return (
                     <div key={i} className="flex justify-between items-start text-sm">
                       <div>
