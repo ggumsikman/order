@@ -15,6 +15,94 @@ declare global {
   }
 }
 
+const BANNER_TYPES = [
+  {
+    id: '일반현수막',
+    pros: ['저렴한 가격'],
+    cons: ['햇빛·바람 등 외부영향의 빛바램', '습기에 취약', '약한 내구도'],
+  },
+  {
+    id: 'UV현수막',
+    pros: ['장시간 노출시에도 변함없는 컬러', '은은한 광택', '습기에 강함', '튼튼한 내구도'],
+    cons: ['일반현수막과 비교시 높은 가격'],
+  },
+]
+
+const FINISHING_BANNER = [
+  {
+    id: '열재단',
+    price: '추가금없음',
+    badge: null,
+    icon: '✂️',
+    sub: '',
+    desc: '기본 재단 마감. 실내에서 스템플러·테이프·자석으로 고정시 사용.',
+  },
+  {
+    id: '아일렛타공',
+    price: '2,000원',
+    badge: 'BEST',
+    icon: '⭕',
+    sub: '기본 사방4개 · 로프 미포함',
+    desc: '구멍으로 끈·못·피스 걸기용. 2·8개 선택 가능.',
+  },
+  {
+    id: '아일렛타공+큐방',
+    price: '4,000원',
+    badge: null,
+    icon: '🔲',
+    sub: '큐방 4개 포함',
+    desc: '흡착형 큐방으로 유리·타일 위에 고정. 추가 시 추가금 발생.',
+  },
+  {
+    id: '끈고리가공',
+    price: '4,000원',
+    badge: 'BEST',
+    icon: '🔗',
+    sub: '로프 포함',
+    desc: '모서리에 끈고리 달아 끈으로 고정. 외부 장기 거치에 추천.',
+  },
+  {
+    id: '막대가공',
+    price: '5,000원',
+    badge: null,
+    icon: '📏',
+    sub: '로프 포함',
+    desc: '양 끝 각목·로프로 팽팽하게 외부 게시. 세로 90cm까지 가능.',
+  },
+  {
+    id: '봉미싱',
+    price: '1,000원~',
+    badge: null,
+    icon: '🪡',
+    sub: '한 방향당',
+    desc: '각목·봉 끼워 사용. 사이즈에 따라 가격 다름, 별도 문의 필수.',
+  },
+  {
+    id: '사방줄미싱',
+    price: '2,000원×가로m',
+    badge: null,
+    icon: '🧵',
+    sub: '현수막 가로 길이 기준',
+    desc: '상하좌우 줄 재봉. 비바람에 강해 외부 장기 거치에 최적.',
+  },
+  {
+    id: '로프(3m)',
+    price: '1,000원',
+    badge: null,
+    icon: '🪢',
+    sub: '',
+    desc: '외부 현수막 고정용 로프 3m. 필요 길이 확인 후 수량 설정.',
+  },
+  {
+    id: '원형겔양면테이프',
+    price: '1,000원',
+    badge: null,
+    icon: '🔴',
+    sub: '8개',
+    desc: '열재단 현수막 임시 고정용.',
+  },
+]
+
 const PRODUCT_TYPES = [
   { id: '현수막',    emoji: '🪧', desc: '야외·실내 행사용' },
   { id: '배너',      emoji: '🖼️', desc: '스탠드·벽걸이형' },
@@ -30,6 +118,7 @@ const FINISHING_OPTIONS = ['열재단', '아일렛타공', '각목마감']
 
 interface ItemForm {
   product_type: string
+  banner_type: string
   design_type: string
   design_name: string
   design_sub_name: string
@@ -42,6 +131,7 @@ interface ItemForm {
 
 const defaultItem = (): ItemForm => ({
   product_type: '',
+  banner_type: '',
   design_type: '',
   design_name: '',
   design_sub_name: '',
@@ -173,6 +263,7 @@ export default function OrderPage() {
 
       const orderItems = items.map(item => ({
         product_type: item.product_type,
+        banner_type: item.banner_type,
         design_type: item.design_type,
         design_name: item.design_name,
         design_sub_name: item.design_sub_name,
@@ -305,7 +396,51 @@ export default function OrderPage() {
                   {errors[`item_${index}_product_type`] && (
                     <p className="text-red-500 text-xs mt-1">{errors[`item_${index}_product_type`]}</p>
                   )}
-                  {/* TODO: 카테고리별 세부 옵션 (다음 단계) */}
+                  {/* 현수막 타입 선택 */}
+                  {item.product_type === '현수막' && (
+                    <div className="mt-3">
+                      <p className="text-sm font-medium text-gray-700 mb-2">현수막 타입</p>
+                      <div className="grid grid-cols-2 rounded-xl overflow-hidden border border-gray-200">
+                        {BANNER_TYPES.map((bt, i) => (
+                          <button
+                            key={bt.id}
+                            type="button"
+                            onClick={() => setItems(prev => prev.map((it, idx) => idx === index ? { ...it, banner_type: bt.id } : it))}
+                            className={`py-4 text-sm font-bold transition ${
+                              item.banner_type === bt.id
+                                ? 'bg-green-500 text-white'
+                                : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                            } ${i === 0 ? 'border-r border-gray-200' : ''}`}
+                          >
+                            {item.banner_type === bt.id ? '✓ ' : ''}{bt.id}
+                          </button>
+                        ))}
+                      </div>
+                      {item.banner_type && (() => {
+                        const selected = BANNER_TYPES.find(bt => bt.id === item.banner_type)!
+                        return (
+                          <div className="mt-2 border border-gray-200 rounded-xl p-3 grid grid-cols-2 gap-3 bg-gray-50">
+                            <div>
+                              <p className="text-sm font-bold text-green-600 mb-1.5">장점</p>
+                              <ul className="space-y-1">
+                                {selected.pros.map(p => (
+                                  <li key={p} className="text-xs text-gray-600 flex gap-1"><span className="shrink-0">•</span><span>{p}</span></li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-red-500 mb-1.5">단점</p>
+                              <ul className="space-y-1">
+                                {selected.cons.map(c => (
+                                  <li key={c} className="text-xs text-gray-600 flex gap-1"><span className="shrink-0">•</span><span>{c}</span></li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  )}
                 </div>
                 <Field label="디자인 방식" required error={errors[`item_${index}_design_type`]}>
                   <select value={item.design_type} onChange={e => updateItem(index, 'design_type', e.target.value)} className={inputClass(errors[`item_${index}_design_type`])}>
@@ -351,33 +486,97 @@ export default function OrderPage() {
                   </>
                 )}
                 <div>
-                  <p className="text-sm font-medium text-gray-700 mb-1.5">사이즈 (cm) <span className="text-pink-500">*</span></p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="가로" required error={errors[`item_${index}_width_cm`]}>
-                      <input value={item.width_cm} onChange={e => updateItem(index, 'width_cm', e.target.value)} type="number" placeholder="예) 600" className={inputClass(errors[`item_${index}_width_cm`])} />
-                    </Field>
-                    <Field label="세로" required error={errors[`item_${index}_height_cm`]}>
-                      <input value={item.height_cm} onChange={e => updateItem(index, 'height_cm', e.target.value)} type="number" placeholder="예) 90" className={inputClass(errors[`item_${index}_height_cm`])} />
-                    </Field>
+                  <p className="text-sm font-medium text-gray-700 mb-2">
+                    사이즈 · 수량 <span className="text-pink-500">*</span>
+                  </p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <input
+                      value={item.width_cm}
+                      onChange={e => updateItem(index, 'width_cm', e.target.value)}
+                      type="number"
+                      placeholder="가로"
+                      className={`w-20 border ${errors[`item_${index}_width_cm`] ? 'border-red-400' : 'border-gray-300'} rounded-xl px-3 py-3 text-sm text-center focus:outline-none focus:ring-2 focus:ring-pink-300`}
+                    />
+                    <span className="text-sm text-gray-500">cm</span>
+                    <span className="text-sm text-gray-300 font-bold">×</span>
+                    <input
+                      value={item.height_cm}
+                      onChange={e => updateItem(index, 'height_cm', e.target.value)}
+                      type="number"
+                      placeholder="세로"
+                      className={`w-20 border ${errors[`item_${index}_height_cm`] ? 'border-red-400' : 'border-gray-300'} rounded-xl px-3 py-3 text-sm text-center focus:outline-none focus:ring-2 focus:ring-pink-300`}
+                    />
+                    <span className="text-sm text-gray-500">cm</span>
+                    <span className="text-sm text-gray-300 font-bold">×</span>
+                    <input
+                      value={item.quantity}
+                      onChange={e => updateItem(index, 'quantity', e.target.value)}
+                      type="number"
+                      min="1"
+                      className={`w-16 border ${errors[`item_${index}_quantity`] ? 'border-red-400' : 'border-gray-300'} rounded-xl px-3 py-3 text-sm text-center focus:outline-none focus:ring-2 focus:ring-pink-300`}
+                    />
+                    <span className="text-sm text-gray-500">장</span>
                   </div>
+                  {(errors[`item_${index}_width_cm`] || errors[`item_${index}_height_cm`] || errors[`item_${index}_quantity`]) && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors[`item_${index}_width_cm`] || errors[`item_${index}_height_cm`] || errors[`item_${index}_quantity`]}
+                    </p>
+                  )}
                 </div>
-                <Field label="수량" required error={errors[`item_${index}_quantity`]}>
-                  <input value={item.quantity} onChange={e => updateItem(index, 'quantity', e.target.value)} type="number" min="1" className={inputClass(errors[`item_${index}_quantity`])} />
-                </Field>
                 <div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">후가공 (선택)</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {FINISHING_OPTIONS.map(opt => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => toggleFinishing(index, opt)}
-                        className={`px-4 py-2 rounded-xl text-sm border transition ${item.finishing.includes(opt) ? 'bg-pink-500 border-pink-500 text-white font-semibold' : 'border-gray-300 text-gray-600 hover:border-pink-300'}`}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
+                  <p className="text-sm font-medium text-gray-700 mb-1">후가공 마감 <span className="text-xs font-normal text-gray-400">(선택, 중복 가능)</span></p>
+                  {item.product_type === '현수막' ? (
+                    <>
+                      <p className="text-xs text-gray-400 mb-2">미 선택 시 기본 열재단으로 제작됩니다.</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {FINISHING_BANNER.map(opt => {
+                          const selected = item.finishing.includes(opt.id)
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => toggleFinishing(index, opt.id)}
+                              className={`relative flex flex-col gap-1.5 p-3 rounded-xl border text-left transition ${
+                                selected
+                                  ? 'bg-pink-500 border-pink-500'
+                                  : 'border-gray-200 bg-white hover:border-pink-300'
+                              }`}
+                            >
+                              {opt.badge && (
+                                <span className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">
+                                  {opt.badge}
+                                </span>
+                              )}
+                              <span className="text-2xl leading-none">{opt.icon}</span>
+                              <div>
+                                <p className={`text-sm font-bold leading-tight ${selected ? 'text-white' : 'text-gray-800'}`}>
+                                  {opt.id}
+                                </p>
+                                {opt.sub && (
+                                  <p className={`text-xs mt-0.5 ${selected ? 'text-pink-100' : 'text-gray-400'}`}>{opt.sub}</p>
+                                )}
+                                <p className={`text-xs font-semibold mt-0.5 ${selected ? 'text-pink-100' : 'text-pink-600'}`}>{opt.price}</p>
+                              </div>
+                              <p className={`text-xs leading-relaxed ${selected ? 'text-pink-100' : 'text-gray-500'}`}>{opt.desc}</p>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex gap-2 flex-wrap mt-1">
+                      {FINISHING_OPTIONS.map(opt => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => toggleFinishing(index, opt)}
+                          className={`px-4 py-2 rounded-xl text-sm border transition ${item.finishing.includes(opt) ? 'bg-pink-500 border-pink-500 text-white font-semibold' : 'border-gray-300 text-gray-600 hover:border-pink-300'}`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
