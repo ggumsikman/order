@@ -835,40 +835,62 @@ export default function OrderPage() {
             </div>
           </Section>
 
-          {/* 주문 요약 */}
-          {items.some(item => item.product_type) && (
-            <div className="bg-pink-50 border border-pink-200 rounded-2xl p-5">
-              <h2 className="font-bold text-gray-800 mb-3 text-base">주문 요약</h2>
-              <div className="space-y-2">
-                {items.filter(item => item.product_type).map((item, i) => {
-                  const name = item.product_type
-                  return (
+          {/* 예상 견적 합계 */}
+          {items.some(item => item.product_type) && (() => {
+            const estimates = items.filter(item => item.product_type).map(item => {
+              const qty = parseInt(item.quantity) || 1
+              if (item.product_type === '현수막') {
+                const w = parseFloat(item.width_cm), h = parseFloat(item.height_cm)
+                if (w && h) {
+                  const base = calcBannerBasePrice(w, h)
+                  const widthM = Math.ceil(w / 100)
+                  const finishingTotal = item.finishing.reduce((sum, f) =>
+                    sum + (f === '사방줄미싱' ? 2000 * widthM : (BANNER_FINISHING_PRICES[f] ?? 0)), 0)
+                  return { item, subtotal: (base + finishingTotal) * qty, hasPrice: true }
+                }
+              }
+              return { item, subtotal: 0, hasPrice: false }
+            })
+            const calcTotal = estimates.reduce((sum, e) => sum + e.subtotal, 0)
+            const hasAny = estimates.some(e => e.hasPrice)
+            const hasUnpriced = estimates.some(e => !e.hasPrice)
+            const shipping = 3000
+            return (
+              <div className="bg-pink-50 border border-pink-200 rounded-2xl p-5">
+                <h2 className="font-bold text-pink-800 mb-3 text-base">💰 예상 견적 합계</h2>
+                <div className="space-y-2">
+                  {estimates.map(({ item, subtotal, hasPrice }, i) => (
                     <div key={i} className="flex justify-between items-start text-sm">
-                      <div>
-                        <span className="font-medium text-gray-800">{name}</span>
-                        {item.design_name && (
-                          <span className="text-purple-600 ml-1">· {item.design_name}</span>
-                        )}
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium text-gray-800">{item.product_type}</span>
                         {(item.width_cm || item.height_cm) && (
                           <span className="text-gray-500 ml-1">({item.width_cm || '?'}×{item.height_cm || '?'}cm)</span>
                         )}
-                        {item.finishing.length > 0 && (
-                          <span className="text-pink-600 ml-1">· {item.finishing.join(', ')}</span>
-                        )}
+                        {item.design_name && <span className="text-purple-600 ml-1">· {item.design_name}</span>}
+                        <span className="text-gray-400 ml-1">× {item.quantity || 1}개</span>
                       </div>
-                      <span className="text-gray-700 font-semibold ml-3 shrink-0">{item.quantity || 0}개</span>
+                      <span className="font-semibold ml-3 shrink-0 text-gray-800">
+                        {hasPrice ? `${subtotal.toLocaleString()}원` : <span className="text-gray-400 text-xs">견적 안내 예정</span>}
+                      </span>
                     </div>
-                  )
-                })}
-                {items.filter(item => item.product_type).length > 1 && (
-                  <div className="border-t border-pink-200 pt-2 flex justify-between text-sm font-bold text-gray-800">
-                    <span>총 수량</span>
-                    <span>{items.filter(item => item.product_type).reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0)}개</span>
+                  ))}
+                  <div className="flex justify-between text-sm text-gray-500 pt-1">
+                    <span>배송비</span>
+                    <span>+{shipping.toLocaleString()}원</span>
                   </div>
-                )}
+                  {hasAny && (
+                    <div className="border-t border-pink-300 pt-2 flex justify-between items-baseline">
+                      <span className="font-bold text-pink-800">
+                        합계 {hasUnpriced && <span className="text-xs font-normal text-gray-400">(일부 별도 안내)</span>}
+                      </span>
+                      <span className="font-bold text-pink-600 text-lg">{(calcTotal + shipping).toLocaleString()}원~</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-3">※ 예상 금액으로, 실제 견적은 주문 확인 후 안내드립니다.</p>
               </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* 개인정보 동의 */}
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
