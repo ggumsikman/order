@@ -587,6 +587,8 @@ export default function OrderPage() {
                       ))}
                     </div>
                   )}
+                </div>
+
                 {/* 문구 내용 */}
                 <div className="pt-4 border-t border-gray-100">
                   <p className="text-sm font-bold text-gray-800 mb-3">
