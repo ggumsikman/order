@@ -452,6 +452,8 @@ export default function OrderPage() {
                     </div>
                   )}
                 </div>
+
+                {item.product_type && (<>
                 <Field label="디자인 방식" required error={errors[`item_${index}_design_type`]}>
                   <select value={item.design_type} onChange={e => updateItem(index, 'design_type', e.target.value)} className={inputClass(errors[`item_${index}_design_type`])}>
                     <option value="">선택해주세요</option>
@@ -620,6 +622,7 @@ export default function OrderPage() {
                     </Field>
                   </div>
                 </div>
+                </>)}
 
               </div>
             </div>
