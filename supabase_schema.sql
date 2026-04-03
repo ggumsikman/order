@@ -85,3 +85,33 @@ ALTER TABLE orders ADD CONSTRAINT orders_status_check
 
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS final_price INTEGER;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS draft_history JSONB DEFAULT '[]';
+
+-- =============================================
+-- 마이그레이션: 배너 시안 관리 테이블
+-- Supabase 대시보드 > SQL Editor에서 실행하세요
+-- =============================================
+CREATE TABLE IF NOT EXISTS banner_designs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  name TEXT NOT NULL,
+  thumbnail_url TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER DEFAULT 0,
+  active BOOLEAN DEFAULT true
+);
+
+CREATE INDEX IF NOT EXISTS banner_designs_sort_idx ON banner_designs (sort_order ASC, created_at DESC);
+
+ALTER TABLE banner_designs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "anon can select banner_designs" ON banner_designs
+  FOR SELECT TO anon USING (true);
+
+CREATE POLICY "anon can insert banner_designs" ON banner_designs
+  FOR INSERT TO anon WITH CHECK (true);
+
+CREATE POLICY "anon can update banner_designs" ON banner_designs
+  FOR UPDATE TO anon USING (true);
+
+CREATE POLICY "anon can delete banner_designs" ON banner_designs
+  FOR DELETE TO anon USING (true);

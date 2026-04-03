@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Script from 'next/script'
@@ -116,6 +116,31 @@ const DESIGN_TYPES = ['기본 디자인 선택', '맞춤 디자인 요청', '직
 const PAYMENT_METHODS = ['계좌이체', '카드결제']
 const FINISHING_OPTIONS = ['열재단', '아일렛타공', '각목마감']
 
+interface BannerDesign {
+  id: string
+  name: string
+  thumbnail_url: string
+  category: string
+  sort_order: number
+}
+
+const BANNER_SIZE_PRESETS = [
+  { id: 'p1',  category: '가로형',     label: '3m × 70cm',    width: 300, height: 70,  price: 30000 },
+  { id: 'p2',  category: '가로형',     label: '4m × 70cm',    width: 400, height: 70,  price: 37000 },
+  { id: 'p3',  category: '가로형',     label: '5m × 90cm',    width: 500, height: 90,  price: 45000 },
+  { id: 'p4',  category: '가로형',     label: '6m × 90cm',    width: 600, height: 90,  price: 55000 },
+  { id: 'p5',  category: '가로형',     label: '7m × 90cm',    width: 700, height: 90,  price: 65000 },
+  { id: 'p6',  category: '가로형',     label: '8m × 90cm',    width: 800, height: 90,  price: 75000 },
+  { id: 'p7',  category: '가로형',     label: '10m × 90cm',   width: 1000, height: 90, price: 95000 },
+  { id: 'p8',  category: '가로형',     label: '10m × 100cm',  width: 1000, height: 100, price: 102000 },
+  { id: 'p9',  category: '포토존형',   label: '180cm × 150cm', width: 180, height: 150, price: 32000 },
+  { id: 'p10', category: '포토존형',   label: '200cm × 180cm', width: 200, height: 180, price: 38000 },
+  { id: 'p11', category: '포토존형',   label: '240cm × 180cm', width: 240, height: 180, price: 45000 },
+  { id: 'p12', category: '포토존형',   label: '300cm × 180cm', width: 300, height: 180, price: 55000 },
+  { id: 'p13', category: '대형포토존', label: '300cm × 200cm', width: 300, height: 200, price: 80000 },
+  { id: 'p14', category: '대형포토존', label: '300cm × 230cm', width: 300, height: 230, price: 85000 },
+]
+
 // 현수막 가격 계산 (ilbirong 견적 계산기 로직)
 const BANNER_FINISHING_PRICES: Record<string, number> = {
   '열재단': 0, '아일렛타공': 2000, '아일렛타공+큐방': 4000,
@@ -157,9 +182,12 @@ interface ItemForm {
   product_type: string
   banner_type: string
   design_type: string
+  design_id: string
+  design_thumbnail: string
   design_name: string
   design_sub_name: string
   handwriting_change: boolean
+  size_preset_id: string
   width_cm: string
   height_cm: string
   quantity: string
@@ -174,9 +202,12 @@ const defaultItem = (): ItemForm => ({
   product_type: '',
   banner_type: '',
   design_type: '',
+  design_id: '',
+  design_thumbnail: '',
   design_name: '',
   design_sub_name: '',
   handwriting_change: false,
+  size_preset_id: '',
   width_cm: '',
   height_cm: '',
   quantity: '1',
@@ -213,6 +244,14 @@ export default function OrderPage() {
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [bannerDesigns, setBannerDesigns] = useState<BannerDesign[]>([])
+  const [showDesignPicker, setShowDesignPicker] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetch('/api/designs').then(r => r.json()).then(d => {
+      if (d.success) setBannerDesigns(d.designs)
+    }).catch(() => {})
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -267,8 +306,17 @@ export default function OrderPage() {
     items.forEach((item, i) => {
       if (!item.product_type) newErrors[`item_${i}_product_type`] = '제품 종류를 선택해주세요.'
       if (!item.design_type) newErrors[`item_${i}_design_type`] = '디자인 방식을 선택해주세요.'
-      if (!item.width_cm) newErrors[`item_${i}_width_cm`] = '가로 사이즈를 입력해주세요.'
-      if (!item.height_cm) newErrors[`item_${i}_height_cm`] = '세로 사이즈를 입력해주세요.'
+      if (item.product_type === '현수막') {
+        if (item.design_type === '기본 시안 선택' && !item.design_id) newErrors[`item_${i}_design_id`] = '시안을 선택해주세요.'
+        if (!item.size_preset_id) newErrors[`item_${i}_size_preset_id`] = '사이즈를 선택해주세요.'
+        if (item.size_preset_id === 'custom') {
+          if (!item.width_cm) newErrors[`item_${i}_width_cm`] = '가로 사이즈를 입력해주세요.'
+          if (!item.height_cm) newErrors[`item_${i}_height_cm`] = '세로 사이즈를 입력해주세요.'
+        }
+      } else {
+        if (!item.width_cm) newErrors[`item_${i}_width_cm`] = '가로 사이즈를 입력해주세요.'
+        if (!item.height_cm) newErrors[`item_${i}_height_cm`] = '세로 사이즈를 입력해주세요.'
+      }
       if (!item.quantity || parseInt(item.quantity) < 1) newErrors[`item_${i}_quantity`] = '수량을 입력해주세요.'
     })
     if (!form.shipping_address.trim()) newErrors.shipping_address = '배송주소를 입력해주세요.'
@@ -372,6 +420,46 @@ export default function OrderPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js" strategy="lazyOnload" />
+
+      {/* 시안 선택 팝업 */}
+      {showDesignPicker !== null && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setShowDesignPicker(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h3 className="font-bold text-gray-800">시안 선택</h3>
+              <button type="button" onClick={() => setShowDesignPicker(null)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-4">
+              {bannerDesigns.length === 0 ? (
+                <div className="text-center py-12 text-gray-400 text-sm">등록된 시안이 없습니다.<br /><span className="text-xs">관리자 페이지에서 시안을 등록해주세요.</span></div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {bannerDesigns.map(design => (
+                    <button key={design.id} type="button"
+                      onClick={() => {
+                        setItems(prev => prev.map((it, i) => i === showDesignPicker ? {
+                          ...it, design_id: design.id, design_thumbnail: design.thumbnail_url, design_name: design.name,
+                        } : it))
+                        setShowDesignPicker(null)
+                      }}
+                      className="text-left border border-gray-200 rounded-xl overflow-hidden hover:border-pink-400 hover:shadow-md transition"
+                    >
+                      <div className="aspect-video bg-gray-100">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={design.thumbnail_url} alt={design.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="p-2.5">
+                        <p className="text-sm font-semibold text-gray-800 leading-tight">{design.name}</p>
+                        {design.category && <p className="text-xs text-gray-400 mt-0.5">{design.category}</p>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="bg-gradient-to-r from-pink-500 to-purple-600 text-white py-8 px-4 text-center">
         <h1 className="text-2xl font-bold">일비롱디자인</h1>
         <p className="mt-1 text-pink-100 text-sm">주문서 작성</p>
@@ -443,266 +531,322 @@ export default function OrderPage() {
                   {errors[`item_${index}_product_type`] && (
                     <p className="text-red-500 text-xs mt-1">{errors[`item_${index}_product_type`]}</p>
                   )}
-                  {/* 현수막 타입 선택 */}
-                  {item.product_type === '현수막' && (
-                    <div className="mt-3">
-                      <p className="text-sm font-medium text-gray-700 mb-2">현수막 타입</p>
-                      <div className="grid grid-cols-2 rounded-xl overflow-hidden border border-gray-200">
-                        {BANNER_TYPES.map((bt, i) => (
-                          <button
-                            key={bt.id}
-                            type="button"
-                            onClick={() => setItems(prev => prev.map((it, idx) => idx === index ? { ...it, banner_type: bt.id } : it))}
-                            className={`py-4 text-sm font-bold transition ${
-                              item.banner_type === bt.id
-                                ? 'bg-green-500 text-white'
-                                : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-                            } ${i === 0 ? 'border-r border-gray-200' : ''}`}
+                </div>
+
+                {item.product_type && (item.product_type === '현수막' ? (
+                  <>
+                    {/* Step 1: 디자인 방식 */}
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">디자인 방식 <span className="text-pink-500">*</span></p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {['기본 시안 선택', '맞춤 디자인 요청', '직접 파일 제공'].map(dt => (
+                          <button key={dt} type="button"
+                            onClick={() => setItems(prev => prev.map((it, i) => i === index ? {
+                              ...it, design_type: it.design_type === dt ? '' : dt,
+                              design_id: '', design_thumbnail: '', design_name: '',
+                              size_preset_id: '', width_cm: '', height_cm: '',
+                            } : it))}
+                            className={`py-3 px-2 rounded-xl border text-xs font-medium text-center transition ${item.design_type === dt ? 'bg-pink-500 border-pink-500 text-white' : 'border-gray-200 text-gray-600 hover:border-pink-300'}`}
                           >
-                            {item.banner_type === bt.id ? '✓ ' : ''}{bt.id}
+                            {dt === '기본 시안 선택' ? '🎨' : dt === '맞춤 디자인 요청' ? '✏️' : '📁'}<br />{dt}
                           </button>
                         ))}
                       </div>
-                      {item.banner_type && (() => {
-                        const selected = BANNER_TYPES.find(bt => bt.id === item.banner_type)!
-                        return (
-                          <div className="mt-2 border border-gray-200 rounded-xl p-3 grid grid-cols-2 gap-3 bg-gray-50">
-                            <div>
-                              <p className="text-sm font-bold text-green-600 mb-1.5">장점</p>
-                              <ul className="space-y-1">
-                                {selected.pros.map(p => (
-                                  <li key={p} className="text-xs text-gray-600 flex gap-1"><span className="shrink-0">•</span><span>{p}</span></li>
-                                ))}
-                              </ul>
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-red-500 mb-1.5">단점</p>
-                              <ul className="space-y-1">
-                                {selected.cons.map(c => (
-                                  <li key={c} className="text-xs text-gray-600 flex gap-1"><span className="shrink-0">•</span><span>{c}</span></li>
-                                ))}
-                              </ul>
-                            </div>
-                          </div>
-                        )
-                      })()}
+                      {errors[`item_${index}_design_type`] && <p className="text-red-500 text-xs mt-1">{errors[`item_${index}_design_type`]}</p>}
                     </div>
-                  )}
-                </div>
 
-                {item.product_type && (<>
-                <Field label="디자인 방식" required error={errors[`item_${index}_design_type`]}>
-                  <select value={item.design_type} onChange={e => updateItem(index, 'design_type', e.target.value)} className={inputClass(errors[`item_${index}_design_type`])}>
-                    <option value="">선택해주세요</option>
-                    {DESIGN_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </Field>
-                {item.design_type === '기본 디자인 선택' && (
+                    {/* Step 2: 디자인 방식별 세부 */}
+                    {item.design_type === '기본 시안 선택' && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">시안 선택 <span className="text-pink-500">*</span></p>
+                        {item.design_id ? (
+                          <div className="flex items-center gap-3 p-3 bg-pink-50 border border-pink-200 rounded-xl">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={item.design_thumbnail} alt={item.design_name} className="w-16 h-16 object-cover rounded-lg" />
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-gray-800">{item.design_name}</p>
+                            </div>
+                            <button type="button" onClick={() => setShowDesignPicker(index)} className="text-xs text-pink-500 hover:text-pink-700 font-medium">변경</button>
+                          </div>
+                        ) : (
+                          <button type="button" onClick={() => setShowDesignPicker(index)}
+                            className="w-full py-8 border-2 border-dashed border-pink-300 rounded-xl text-pink-500 text-sm hover:bg-pink-50 transition">
+                            + 시안 선택하기
+                          </button>
+                        )}
+                        {errors[`item_${index}_design_id`] && <p className="text-red-500 text-xs mt-1">{errors[`item_${index}_design_id`]}</p>}
+                      </div>
+                    )}
+                    {item.design_type === '맞춤 디자인 요청' && (
+                      <Field label="디자인 요청 내용">
+                        <textarea value={item.design_name} onChange={e => updateItem(index, 'design_name', e.target.value)}
+                          placeholder="원하시는 디자인에 대해 자유롭게 설명해주세요." rows={3}
+                          className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none" />
+                      </Field>
+                    )}
+                    {item.design_type === '직접 파일 제공' && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+                        <p className="font-semibold mb-1">📁 파일 제공 안내</p>
+                        <p className="text-xs text-blue-700">아래 하단의 이미지 첨부에서 파일을 업로드하거나, 주문 접수 후 채팅으로 전달해 주세요.</p>
+                      </div>
+                    )}
+
+                    {/* Step 3: 현수막 타입 + 사이즈 */}
+                    {item.design_type && (item.design_type !== '기본 시안 선택' || item.design_id) && (
+                      <>
+                        <div>
+                          <p className="text-sm font-medium text-gray-700 mb-2">현수막 타입</p>
+                          <div className="grid grid-cols-2 rounded-xl overflow-hidden border border-gray-200">
+                            {BANNER_TYPES.map((bt, i) => (
+                              <button key={bt.id} type="button"
+                                onClick={() => setItems(prev => prev.map((it, idx) => idx === index ? { ...it, banner_type: bt.id } : it))}
+                                className={`py-4 text-sm font-bold transition ${item.banner_type === bt.id ? 'bg-green-500 text-white' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'} ${i === 0 ? 'border-r border-gray-200' : ''}`}
+                              >
+                                {item.banner_type === bt.id ? '✓ ' : ''}{bt.id}
+                              </button>
+                            ))}
+                          </div>
+                          {item.banner_type && (() => {
+                            const bt = BANNER_TYPES.find(b => b.id === item.banner_type)!
+                            return (
+                              <div className="mt-2 border border-gray-200 rounded-xl p-3 grid grid-cols-2 gap-3 bg-gray-50">
+                                <div>
+                                  <p className="text-sm font-bold text-green-600 mb-1.5">장점</p>
+                                  <ul className="space-y-1">{bt.pros.map(p => <li key={p} className="text-xs text-gray-600 flex gap-1"><span className="shrink-0">•</span><span>{p}</span></li>)}</ul>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-bold text-red-500 mb-1.5">단점</p>
+                                  <ul className="space-y-1">{bt.cons.map(c => <li key={c} className="text-xs text-gray-600 flex gap-1"><span className="shrink-0">•</span><span>{c}</span></li>)}</ul>
+                                </div>
+                              </div>
+                            )
+                          })()}
+                        </div>
+
+                        <div>
+                          <p className="text-sm font-medium text-gray-700 mb-2">사이즈 선택 <span className="text-pink-500">*</span></p>
+                          {(['가로형', '포토존형', '대형포토존'] as const).map(cat => (
+                            <div key={cat} className="mb-3">
+                              <p className="text-xs font-semibold text-gray-500 mb-1.5">{cat}</p>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                {BANNER_SIZE_PRESETS.filter(p => p.category === cat).map(preset => {
+                                  const sel = item.size_preset_id === preset.id
+                                  return (
+                                    <button key={preset.id} type="button"
+                                      onClick={() => setItems(prev => prev.map((it, i) => i === index ? {
+                                        ...it, size_preset_id: sel ? '' : preset.id,
+                                        width_cm: sel ? '' : String(preset.width),
+                                        height_cm: sel ? '' : String(preset.height),
+                                      } : it))}
+                                      className={`py-2.5 px-3 rounded-xl border text-left transition ${sel ? 'bg-pink-500 border-pink-500' : 'border-gray-200 bg-white hover:border-pink-300'}`}
+                                    >
+                                      <p className={`text-sm font-semibold ${sel ? 'text-white' : 'text-gray-800'}`}>{preset.label}</p>
+                                      <p className={`text-xs mt-0.5 ${sel ? 'text-pink-100' : 'text-pink-600'}`}>{preset.price.toLocaleString()}원</p>
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                          <button type="button"
+                            onClick={() => setItems(prev => prev.map((it, i) => i === index ? {
+                              ...it, size_preset_id: it.size_preset_id === 'custom' ? '' : 'custom',
+                              width_cm: '', height_cm: '',
+                            } : it))}
+                            className={`w-full py-3 rounded-xl border text-sm font-medium transition ${item.size_preset_id === 'custom' ? 'bg-purple-500 border-purple-500 text-white' : 'border-dashed border-gray-300 text-gray-500 hover:border-purple-300'}`}
+                          >
+                            📐 비규격 제작 (직접 입력)
+                          </button>
+                          {item.size_preset_id === 'custom' && (
+                            <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                              <input value={item.width_cm} onChange={e => updateItem(index, 'width_cm', e.target.value)} type="number" placeholder="가로"
+                                className={`w-20 border ${errors[`item_${index}_width_cm`] ? 'border-red-400' : 'border-gray-300'} rounded-xl px-3 py-3 text-sm text-center focus:outline-none focus:ring-2 focus:ring-pink-300`} />
+                              <span className="text-sm text-gray-500">cm ×</span>
+                              <input value={item.height_cm} onChange={e => updateItem(index, 'height_cm', e.target.value)} type="number" placeholder="세로"
+                                className={`w-20 border ${errors[`item_${index}_height_cm`] ? 'border-red-400' : 'border-gray-300'} rounded-xl px-3 py-3 text-sm text-center focus:outline-none focus:ring-2 focus:ring-pink-300`} />
+                              <span className="text-sm text-gray-500">cm</span>
+                              {(errors[`item_${index}_width_cm`] || errors[`item_${index}_height_cm`]) && (
+                                <p className="text-red-500 text-xs w-full mt-0.5">{errors[`item_${index}_width_cm`] || errors[`item_${index}_height_cm`]}</p>
+                              )}
+                            </div>
+                          )}
+                          {errors[`item_${index}_size_preset_id`] && <p className="text-red-500 text-xs mt-1">{errors[`item_${index}_size_preset_id`]}</p>}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Step 4: 수량 + 후가공 + 견적 + 문구 */}
+                    {item.size_preset_id && (item.size_preset_id !== 'custom' || (item.width_cm && item.height_cm)) && (
+                      <>
+                        <Field label="수량" required error={errors[`item_${index}_quantity`]}>
+                          <div className="flex items-center gap-2">
+                            <button type="button" onClick={() => updateItem(index, 'quantity', String(Math.max(1, parseInt(item.quantity || '1') - 1)))}
+                              className="w-10 h-10 rounded-xl border border-gray-300 flex items-center justify-center text-gray-600 hover:border-pink-400 transition text-xl">-</button>
+                            <input value={item.quantity} onChange={e => updateItem(index, 'quantity', e.target.value)} type="number" min="1"
+                              className="w-20 border border-gray-300 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-pink-300" />
+                            <button type="button" onClick={() => updateItem(index, 'quantity', String(parseInt(item.quantity || '1') + 1))}
+                              className="w-10 h-10 rounded-xl border border-gray-300 flex items-center justify-center text-gray-600 hover:border-pink-400 transition text-xl">+</button>
+                            <span className="text-sm text-gray-500">장</span>
+                          </div>
+                        </Field>
+
+                        <div>
+                          <p className="text-sm font-medium text-gray-700 mb-1">후가공 마감 <span className="text-xs font-normal text-gray-400">(선택, 중복 가능)</span></p>
+                          <p className="text-xs text-gray-400 mb-2">미 선택 시 기본 열재단으로 제작됩니다.</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {FINISHING_BANNER.map(opt => {
+                              const sel = item.finishing.includes(opt.id)
+                              return (
+                                <button key={opt.id} type="button" onClick={() => toggleFinishing(index, opt.id)}
+                                  className={`relative flex flex-col gap-1.5 p-3 rounded-xl border text-left transition ${sel ? 'bg-pink-500 border-pink-500' : 'border-gray-200 bg-white hover:border-pink-300'}`}
+                                >
+                                  {opt.badge && <span className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">{opt.badge}</span>}
+                                  <span className="text-2xl leading-none">{opt.icon}</span>
+                                  <div>
+                                    <p className={`text-sm font-bold leading-tight ${sel ? 'text-white' : 'text-gray-800'}`}>{opt.id}</p>
+                                    {opt.sub && <p className={`text-xs mt-0.5 ${sel ? 'text-pink-100' : 'text-gray-400'}`}>{opt.sub}</p>}
+                                    <p className={`text-xs font-semibold mt-0.5 ${sel ? 'text-pink-100' : 'text-pink-600'}`}>{opt.price}</p>
+                                  </div>
+                                  <p className={`text-xs leading-relaxed ${sel ? 'text-pink-100' : 'text-gray-500'}`}>{opt.desc}</p>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+
+                        {(() => {
+                          const w = parseFloat(item.width_cm), h = parseFloat(item.height_cm)
+                          if (!w || !h) return null
+                          const preset = BANNER_SIZE_PRESETS.find(p => p.id === item.size_preset_id)
+                          const basePrice = preset && preset.id !== 'custom' ? preset.price : calcBannerBasePrice(w, h)
+                          const widthM = Math.ceil(w / 100)
+                          const finishingCosts = item.finishing
+                            .map(f => ({ label: f, price: f === '사방줄미싱' ? 2000 * widthM : (BANNER_FINISHING_PRICES[f] ?? 0) }))
+                            .filter(f => f.price > 0)
+                          const finishingTotal = finishingCosts.reduce((s, f) => s + f.price, 0)
+                          const qty = parseInt(item.quantity) || 1
+                          const perUnit = basePrice + finishingTotal
+                          const total = perUnit * qty
+                          return (
+                            <div className="bg-pink-50 border border-pink-200 rounded-xl p-4">
+                              <p className="text-sm font-bold text-pink-800 mb-3">💰 예상 견적</p>
+                              <div className="space-y-1.5 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">현수막 인쇄비 ({w}×{h}cm)</span>
+                                  <span className="font-medium">{basePrice.toLocaleString()}원</span>
+                                </div>
+                                {finishingCosts.map(f => (
+                                  <div key={f.label} className="flex justify-between">
+                                    <span className="text-gray-600">{f.label}</span>
+                                    <span className="font-medium">+{f.price.toLocaleString()}원</span>
+                                  </div>
+                                ))}
+                                {qty > 1 && (
+                                  <div className="flex justify-between text-gray-400 text-xs pt-0.5">
+                                    <span>1장 소계</span><span>{perUnit.toLocaleString()}원</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between border-t border-pink-200 pt-2 mt-1">
+                                  <span className="font-bold text-pink-800">{qty}장 합계</span>
+                                  <span className="font-bold text-pink-600 text-base">{total.toLocaleString()}원</span>
+                                </div>
+                              </div>
+                              <p className="text-xs text-gray-400 mt-2.5">※ 예상 금액으로, 실제 견적은 주문 확인 후 안내드립니다.</p>
+                            </div>
+                          )
+                        })()}
+
+                        <div className="pt-4 border-t border-gray-100">
+                          <p className="text-sm font-bold text-gray-800 mb-3">문구 내용 <span className="text-xs font-normal text-gray-400">(선택)</span></p>
+                          <div className="mb-3 rounded-xl overflow-hidden border border-gray-200">
+                            <Image src="/banner-example.jpg" alt="현수막 문구 위치 예시" width={600} height={250} className="w-full h-auto" />
+                            <p className="text-xs text-gray-400 text-center py-1.5 bg-gray-50">현수막 문구 위치 예시</p>
+                          </div>
+                          <div className="space-y-3">
+                            <p className="text-xs text-gray-400">기본 디자인의 문구를 변경하거나, 새로 입력할 내용을 적어주세요.</p>
+                            <Field label="상단 문구"><input value={item.text_top} onChange={e => updateItem(index, 'text_top', e.target.value)} placeholder="예) 초록 말풍선 - ❤지구를 지켜요❤" className={inputClass()} /></Field>
+                            <Field label="메인 문구"><input value={item.text_main} onChange={e => updateItem(index, 'text_main', e.target.value)} placeholder="예) 지구를 구하는 초록 이야기" className={inputClass()} /></Field>
+                            <Field label="기관명"><input value={item.text_bottom} onChange={e => updateItem(index, 'text_bottom', e.target.value)} placeholder="예) 일비롱어린이집" className={inputClass()} /></Field>
+                            <Field label="기타 문구 수정사항"><textarea value={item.text_corrections} onChange={e => updateItem(index, 'text_corrections', e.target.value)} placeholder="위 항목 외 추가 변경사항을 자유롭게 적어주세요." rows={2} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none" /></Field>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </>
+                ) : (
                   <>
-                    <Field label="디자인 이름" error={errors[`item_${index}_design_name`]}>
-                      <input
-                        value={item.design_name}
-                        onChange={e => updateItem(index, 'design_name', e.target.value)}
-                        placeholder="예) 식목일 생태체험, 크레파스밭기"
-                        className={inputClass(errors[`item_${index}_design_name`])}
-                      />
-                      <p className="text-xs text-gray-400 mt-1">네이버 스마트스토어 상세페이지에서 확인하신 디자인 이름을 적어주세요.</p>
+                    {/* 비현수막 제품 플로우 */}
+                    <Field label="디자인 방식" required error={errors[`item_${index}_design_type`]}>
+                      <select value={item.design_type} onChange={e => updateItem(index, 'design_type', e.target.value)} className={inputClass(errors[`item_${index}_design_type`])}>
+                        <option value="">선택해주세요</option>
+                        {DESIGN_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
                     </Field>
-                    <Field label="세부 디자인 (색상/버전)">
-                      <input
-                        value={item.design_sub_name}
-                        onChange={e => updateItem(index, 'design_sub_name', e.target.value)}
-                        placeholder="예) 초록나무, 핑크버전 (해당되는 경우만)"
-                        className={inputClass()}
-                      />
-                    </Field>
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                      <p className="text-sm font-medium text-amber-800 mb-1">손글씨 문구 변경 여부</p>
-                      <p className="text-xs text-amber-700 mb-3">기본 디자인의 손글씨 문구를 변경하실 경우 <span className="font-semibold">추가금 5,000원</span>이 발생합니다. 변경하지 않으시면 추가금이 없습니다.</p>
-                      <div className="flex gap-3">
-                        {[
-                          { value: false, label: '변경 없음', sub: '추가금 없음' },
-                          { value: true, label: '변경 원함', sub: '+5,000원' },
-                        ].map(opt => (
-                          <label key={String(opt.value)} className={`flex-1 border rounded-xl py-3 text-center text-sm cursor-pointer transition ${item.handwriting_change === opt.value ? 'bg-amber-500 border-amber-500 text-white font-semibold' : 'border-amber-300 text-amber-800 hover:border-amber-400 bg-white'}`}>
-                            <input type="radio" className="hidden" checked={item.handwriting_change === opt.value} onChange={() => setItems(prev => prev.map((it, i) => i === index ? { ...it, handwriting_change: opt.value } : it))} />
-                            <div>{opt.label}</div>
-                            <div className={`text-xs mt-0.5 ${item.handwriting_change === opt.value ? 'text-amber-100' : 'text-amber-600'}`}>{opt.sub}</div>
-                          </label>
+                    {item.design_type === '기본 디자인 선택' && (
+                      <>
+                        <Field label="디자인 이름" error={errors[`item_${index}_design_name`]}>
+                          <input value={item.design_name} onChange={e => updateItem(index, 'design_name', e.target.value)} placeholder="예) 식목일 생태체험, 크레파스밭기" className={inputClass(errors[`item_${index}_design_name`])} />
+                          <p className="text-xs text-gray-400 mt-1">네이버 스마트스토어 상세페이지에서 확인하신 디자인 이름을 적어주세요.</p>
+                        </Field>
+                        <Field label="세부 디자인 (색상/버전)">
+                          <input value={item.design_sub_name} onChange={e => updateItem(index, 'design_sub_name', e.target.value)} placeholder="예) 초록나무, 핑크버전 (해당되는 경우만)" className={inputClass()} />
+                        </Field>
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                          <p className="text-sm font-medium text-amber-800 mb-1">손글씨 문구 변경 여부</p>
+                          <p className="text-xs text-amber-700 mb-3">기본 디자인의 손글씨 문구를 변경하실 경우 <span className="font-semibold">추가금 5,000원</span>이 발생합니다. 변경하지 않으시면 추가금이 없습니다.</p>
+                          <div className="flex gap-3">
+                            {[{ value: false, label: '변경 없음', sub: '추가금 없음' }, { value: true, label: '변경 원함', sub: '+5,000원' }].map(opt => (
+                              <label key={String(opt.value)} className={`flex-1 border rounded-xl py-3 text-center text-sm cursor-pointer transition ${item.handwriting_change === opt.value ? 'bg-amber-500 border-amber-500 text-white font-semibold' : 'border-amber-300 text-amber-800 hover:border-amber-400 bg-white'}`}>
+                                <input type="radio" className="hidden" checked={item.handwriting_change === opt.value} onChange={() => setItems(prev => prev.map((it, i) => i === index ? { ...it, handwriting_change: opt.value } : it))} />
+                                <div>{opt.label}</div>
+                                <div className={`text-xs mt-0.5 ${item.handwriting_change === opt.value ? 'text-amber-100' : 'text-amber-600'}`}>{opt.sub}</div>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">사이즈 · 수량 <span className="text-pink-500">*</span></p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <input value={item.width_cm} onChange={e => updateItem(index, 'width_cm', e.target.value)} type="number" placeholder="가로"
+                          className={`w-20 border ${errors[`item_${index}_width_cm`] ? 'border-red-400' : 'border-gray-300'} rounded-xl px-3 py-3 text-sm text-center focus:outline-none focus:ring-2 focus:ring-pink-300`} />
+                        <span className="text-sm text-gray-500">cm</span>
+                        <span className="text-sm text-gray-300 font-bold">×</span>
+                        <input value={item.height_cm} onChange={e => updateItem(index, 'height_cm', e.target.value)} type="number" placeholder="세로"
+                          className={`w-20 border ${errors[`item_${index}_height_cm`] ? 'border-red-400' : 'border-gray-300'} rounded-xl px-3 py-3 text-sm text-center focus:outline-none focus:ring-2 focus:ring-pink-300`} />
+                        <span className="text-sm text-gray-500">cm</span>
+                        <span className="text-sm text-gray-300 font-bold">×</span>
+                        <input value={item.quantity} onChange={e => updateItem(index, 'quantity', e.target.value)} type="number" min="1"
+                          className={`w-16 border ${errors[`item_${index}_quantity`] ? 'border-red-400' : 'border-gray-300'} rounded-xl px-3 py-3 text-sm text-center focus:outline-none focus:ring-2 focus:ring-pink-300`} />
+                        <span className="text-sm text-gray-500">장</span>
+                      </div>
+                      {(errors[`item_${index}_width_cm`] || errors[`item_${index}_height_cm`] || errors[`item_${index}_quantity`]) && (
+                        <p className="text-red-500 text-xs mt-1">{errors[`item_${index}_width_cm`] || errors[`item_${index}_height_cm`] || errors[`item_${index}_quantity`]}</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-1">후가공 마감 <span className="text-xs font-normal text-gray-400">(선택, 중복 가능)</span></p>
+                      <div className="flex gap-2 flex-wrap mt-1">
+                        {FINISHING_OPTIONS.map(opt => (
+                          <button key={opt} type="button" onClick={() => toggleFinishing(index, opt)}
+                            className={`px-4 py-2 rounded-xl text-sm border transition ${item.finishing.includes(opt) ? 'bg-pink-500 border-pink-500 text-white font-semibold' : 'border-gray-300 text-gray-600 hover:border-pink-300'}`}>
+                            {opt}
+                          </button>
                         ))}
+                      </div>
+                    </div>
+                    <div className="pt-4 border-t border-gray-100">
+                      <p className="text-sm font-bold text-gray-800 mb-3">문구 내용 <span className="text-xs font-normal text-gray-400">(선택)</span></p>
+                      <div className="space-y-3">
+                        <Field label="상단 문구"><input value={item.text_top} onChange={e => updateItem(index, 'text_top', e.target.value)} placeholder="예) 초록 말풍선 - ❤지구를 지켜요❤" className={inputClass()} /></Field>
+                        <Field label="메인 문구"><input value={item.text_main} onChange={e => updateItem(index, 'text_main', e.target.value)} placeholder="예) 지구를 구하는 초록 이야기" className={inputClass()} /></Field>
+                        <Field label="기관명"><input value={item.text_bottom} onChange={e => updateItem(index, 'text_bottom', e.target.value)} placeholder="예) 일비롱어린이집" className={inputClass()} /></Field>
+                        <Field label="기타 문구 수정사항"><textarea value={item.text_corrections} onChange={e => updateItem(index, 'text_corrections', e.target.value)} placeholder="위 항목 외 추가 변경사항을 자유롭게 적어주세요." rows={2} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none" /></Field>
                       </div>
                     </div>
                   </>
-                )}
-                <div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">
-                    사이즈 · 수량 <span className="text-pink-500">*</span>
-                  </p>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <input
-                      value={item.width_cm}
-                      onChange={e => updateItem(index, 'width_cm', e.target.value)}
-                      type="number"
-                      placeholder="가로"
-                      className={`w-20 border ${errors[`item_${index}_width_cm`] ? 'border-red-400' : 'border-gray-300'} rounded-xl px-3 py-3 text-sm text-center focus:outline-none focus:ring-2 focus:ring-pink-300`}
-                    />
-                    <span className="text-sm text-gray-500">cm</span>
-                    <span className="text-sm text-gray-300 font-bold">×</span>
-                    <input
-                      value={item.height_cm}
-                      onChange={e => updateItem(index, 'height_cm', e.target.value)}
-                      type="number"
-                      placeholder="세로"
-                      className={`w-20 border ${errors[`item_${index}_height_cm`] ? 'border-red-400' : 'border-gray-300'} rounded-xl px-3 py-3 text-sm text-center focus:outline-none focus:ring-2 focus:ring-pink-300`}
-                    />
-                    <span className="text-sm text-gray-500">cm</span>
-                    <span className="text-sm text-gray-300 font-bold">×</span>
-                    <input
-                      value={item.quantity}
-                      onChange={e => updateItem(index, 'quantity', e.target.value)}
-                      type="number"
-                      min="1"
-                      className={`w-16 border ${errors[`item_${index}_quantity`] ? 'border-red-400' : 'border-gray-300'} rounded-xl px-3 py-3 text-sm text-center focus:outline-none focus:ring-2 focus:ring-pink-300`}
-                    />
-                    <span className="text-sm text-gray-500">장</span>
-                  </div>
-                  {(errors[`item_${index}_width_cm`] || errors[`item_${index}_height_cm`] || errors[`item_${index}_quantity`]) && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors[`item_${index}_width_cm`] || errors[`item_${index}_height_cm`] || errors[`item_${index}_quantity`]}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-700 mb-1">후가공 마감 <span className="text-xs font-normal text-gray-400">(선택, 중복 가능)</span></p>
-                  {item.product_type === '현수막' ? (
-                    <>
-                      <p className="text-xs text-gray-400 mb-2">미 선택 시 기본 열재단으로 제작됩니다.</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {FINISHING_BANNER.map(opt => {
-                          const selected = item.finishing.includes(opt.id)
-                          return (
-                            <button
-                              key={opt.id}
-                              type="button"
-                              onClick={() => toggleFinishing(index, opt.id)}
-                              className={`relative flex flex-col gap-1.5 p-3 rounded-xl border text-left transition ${
-                                selected
-                                  ? 'bg-pink-500 border-pink-500'
-                                  : 'border-gray-200 bg-white hover:border-pink-300'
-                              }`}
-                            >
-                              {opt.badge && (
-                                <span className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">
-                                  {opt.badge}
-                                </span>
-                              )}
-                              <span className="text-2xl leading-none">{opt.icon}</span>
-                              <div>
-                                <p className={`text-sm font-bold leading-tight ${selected ? 'text-white' : 'text-gray-800'}`}>
-                                  {opt.id}
-                                </p>
-                                {opt.sub && (
-                                  <p className={`text-xs mt-0.5 ${selected ? 'text-pink-100' : 'text-gray-400'}`}>{opt.sub}</p>
-                                )}
-                                <p className={`text-xs font-semibold mt-0.5 ${selected ? 'text-pink-100' : 'text-pink-600'}`}>{opt.price}</p>
-                              </div>
-                              <p className={`text-xs leading-relaxed ${selected ? 'text-pink-100' : 'text-gray-500'}`}>{opt.desc}</p>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex gap-2 flex-wrap mt-1">
-                      {FINISHING_OPTIONS.map(opt => (
-                        <button
-                          key={opt}
-                          type="button"
-                          onClick={() => toggleFinishing(index, opt)}
-                          className={`px-4 py-2 rounded-xl text-sm border transition ${item.finishing.includes(opt) ? 'bg-pink-500 border-pink-500 text-white font-semibold' : 'border-gray-300 text-gray-600 hover:border-pink-300'}`}
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* 현수막 예상 견적 */}
-                {item.product_type === '현수막' && (() => {
-                  const w = parseFloat(item.width_cm), h = parseFloat(item.height_cm)
-                  if (!w || !h) return null
-                  const basePrice = calcBannerBasePrice(w, h)
-                  const widthM = Math.ceil(w / 100)
-                  const finishingCosts = item.finishing
-                    .map(f => ({ label: f, price: f === '사방줄미싱' ? 2000 * widthM : (BANNER_FINISHING_PRICES[f] ?? 0) }))
-                    .filter(f => f.price > 0)
-                  const finishingTotal = finishingCosts.reduce((s, f) => s + f.price, 0)
-                  const qty = parseInt(item.quantity) || 1
-                  const perUnit = basePrice + finishingTotal
-                  const total = perUnit * qty
-                  return (
-                    <div className="bg-pink-50 border border-pink-200 rounded-xl p-4">
-                      <p className="text-sm font-bold text-pink-800 mb-3">💰 예상 견적</p>
-                      <div className="space-y-1.5 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">현수막 인쇄비 ({w}×{h}cm)</span>
-                          <span className="font-medium">{basePrice.toLocaleString()}원</span>
-                        </div>
-                        {finishingCosts.map(f => (
-                          <div key={f.label} className="flex justify-between">
-                            <span className="text-gray-600">{f.label}</span>
-                            <span className="font-medium">+{f.price.toLocaleString()}원</span>
-                          </div>
-                        ))}
-                        {qty > 1 && (
-                          <div className="flex justify-between text-gray-400 text-xs pt-0.5">
-                            <span>1장 소계</span>
-                            <span>{perUnit.toLocaleString()}원</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between border-t border-pink-200 pt-2 mt-1">
-                          <span className="font-bold text-pink-800">{qty}장 합계</span>
-                          <span className="font-bold text-pink-600 text-base">{total.toLocaleString()}원</span>
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-400 mt-2.5">※ 예상 금액으로, 실제 견적은 주문 확인 후 안내드립니다.</p>
-                    </div>
-                  )
-                })()}
-
-                {/* 문구 내용 */}
-                <div className="pt-4 border-t border-gray-100">
-                  <p className="text-sm font-bold text-gray-800 mb-3">
-                    문구 내용 <span className="text-xs font-normal text-gray-400">(선택)</span>
-                  </p>
-                  <div className="mb-3 rounded-xl overflow-hidden border border-gray-200">
-                    <Image
-                      src="/banner-example.jpg"
-                      alt="현수막 문구 위치 예시"
-                      width={600}
-                      height={250}
-                      className="w-full h-auto"
-                    />
-                    <p className="text-xs text-gray-400 text-center py-1.5 bg-gray-50">현수막 문구 위치 예시</p>
-                  </div>
-                  <div className="space-y-3">
-                    <p className="text-xs text-gray-400">기본 디자인의 문구를 변경하거나, 새로 입력할 내용을 적어주세요.</p>
-                    <Field label="상단 문구">
-                      <input value={item.text_top} onChange={e => updateItem(index, 'text_top', e.target.value)} placeholder="예) 초록 말풍선 - ❤지구를 지켜요❤" className={inputClass()} />
-                    </Field>
-                    <Field label="메인 문구">
-                      <input value={item.text_main} onChange={e => updateItem(index, 'text_main', e.target.value)} placeholder="예) 지구를 구하는 초록 이야기" className={inputClass()} />
-                    </Field>
-                    <Field label="기관명">
-                      <input value={item.text_bottom} onChange={e => updateItem(index, 'text_bottom', e.target.value)} placeholder="예) 일비롱어린이집" className={inputClass()} />
-                    </Field>
-                    <Field label="기타 문구 수정사항">
-                      <textarea value={item.text_corrections} onChange={e => updateItem(index, 'text_corrections', e.target.value)} placeholder="위 항목 외 추가 변경사항을 자유롭게 적어주세요." rows={2} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none" />
-                    </Field>
-                  </div>
-                </div>
-                </>)}
+                ))}
 
               </div>
             </div>
@@ -842,7 +986,8 @@ export default function OrderPage() {
               if (item.product_type === '현수막') {
                 const w = parseFloat(item.width_cm), h = parseFloat(item.height_cm)
                 if (w && h) {
-                  const base = calcBannerBasePrice(w, h)
+                  const preset = BANNER_SIZE_PRESETS.find(p => p.id === item.size_preset_id)
+                  const base = preset && preset.id !== 'custom' ? preset.price : calcBannerBasePrice(w, h)
                   const widthM = Math.ceil(w / 100)
                   const finishingTotal = item.finishing.reduce((sum, f) =>
                     sum + (f === '사방줄미싱' ? 2000 * widthM : (BANNER_FINISHING_PRICES[f] ?? 0)), 0)

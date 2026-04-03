@@ -75,7 +75,15 @@ export default function AdminPage() {
   const [filter, setFilter] = useState<typeof FILTER_TABS[number]>('전체')
   const [selected, setSelected] = useState<Order | null>(null)
   const [loading, setLoading] = useState(false)
-  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list')
+  const [viewMode, setViewMode] = useState<'list' | 'kanban' | 'designs'>('list')
+
+  // 시안 관리 상태
+  const [designs, setDesigns] = useState<{id: string; name: string; thumbnail_url: string; category: string; sort_order: number; active: boolean}[]>([])
+  const [designsLoading, setDesignsLoading] = useState(false)
+  const [newDesign, setNewDesign] = useState({ name: '', category: '', sort_order: 0 })
+  const [designUploading, setDesignUploading] = useState(false)
+  const [designUploadedUrl, setDesignUploadedUrl] = useState('')
+  const designFileRef = useRef<HTMLInputElement>(null)
 
   // 시안 업로드 상태
   const [draftUploading, setDraftUploading] = useState(false)
@@ -101,9 +109,24 @@ export default function AdminPage() {
     }
   }, [])
 
+  const fetchDesigns = useCallback(async () => {
+    setDesignsLoading(true)
+    try {
+      const res = await fetch('/api/designs')
+      const result = await res.json()
+      if (result.success) setDesigns(result.designs)
+    } finally {
+      setDesignsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     if (isLoggedIn) fetchOrders()
   }, [isLoggedIn, fetchOrders])
+
+  useEffect(() => {
+    if (isLoggedIn && viewMode === 'designs') fetchDesigns()
+  }, [isLoggedIn, viewMode, fetchDesigns])
 
   // 선택된 주문이 바뀔 때 시안 업로드 상태 초기화
   useEffect(() => {
@@ -252,6 +275,58 @@ export default function AdminPage() {
     setTimeout(() => setQuoteCopied(false), 2000)
   }
 
+  const uploadDesignThumbnail = async (file: File) => {
+    setDesignUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+      const result = await res.json()
+      if (result.success) setDesignUploadedUrl(result.url)
+      else alert('업로드 실패: ' + (result.error || '알 수 없는 오류'))
+    } catch {
+      alert('업로드 중 오류가 발생했습니다.')
+    } finally {
+      setDesignUploading(false)
+    }
+  }
+
+  const addDesign = async () => {
+    if (!newDesign.name.trim()) { alert('시안 이름을 입력해주세요.'); return }
+    if (!designUploadedUrl) { alert('썸네일 이미지를 업로드해주세요.'); return }
+    const res = await fetch('/api/designs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...newDesign, thumbnail_url: designUploadedUrl }),
+    })
+    const result = await res.json()
+    if (result.success) {
+      setDesigns(prev => [...prev, result.design])
+      setNewDesign({ name: '', category: '', sort_order: 0 })
+      setDesignUploadedUrl('')
+    } else {
+      alert('등록 실패: ' + (result.error || '알 수 없는 오류'))
+    }
+  }
+
+  const deleteDesign = async (id: string) => {
+    if (!confirm('이 시안을 삭제하시겠습니까?')) return
+    const res = await fetch(`/api/designs/${id}`, { method: 'DELETE' })
+    const result = await res.json()
+    if (result.success) setDesigns(prev => prev.filter(d => d.id !== id))
+    else alert('삭제 실패: ' + (result.error || '알 수 없는 오류'))
+  }
+
+  const toggleDesignActive = async (id: string, active: boolean) => {
+    const res = await fetch(`/api/designs/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active }),
+    })
+    const result = await res.json()
+    if (result.success) setDesigns(prev => prev.map(d => d.id === id ? { ...d, active } : d))
+  }
+
   const calcEstimateFromItems = (order: Order): number => {
     if (!order.items || order.items.length === 0) return 0
     return order.items.reduce((total, item) => {
@@ -308,8 +383,9 @@ export default function AdminPage() {
             <div className="flex bg-gray-100 rounded-lg p-1 text-xs">
               <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 rounded-md transition font-medium ${viewMode === 'list' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>리스트</button>
               <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 rounded-md transition font-medium ${viewMode === 'kanban' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>칸반</button>
+              <button onClick={() => setViewMode('designs')} className={`px-3 py-1.5 rounded-md transition font-medium ${viewMode === 'designs' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>시안</button>
             </div>
-            <button onClick={fetchOrders} className="text-sm text-pink-500 hover:text-pink-700 font-medium">새로고침</button>
+            <button onClick={viewMode === 'designs' ? fetchDesigns : fetchOrders} className="text-sm text-pink-500 hover:text-pink-700 font-medium">새로고침</button>
           </div>
         </div>
       </div>
@@ -409,6 +485,90 @@ export default function AdminPage() {
                   </div>
                 )
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 시안 관리 뷰 */}
+      {viewMode === 'designs' && (
+        <div className="max-w-3xl mx-auto px-4 py-6">
+          <h2 className="font-bold text-gray-800 text-lg mb-4">시안 관리</h2>
+
+          {/* 새 시안 등록 */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm mb-6">
+            <h3 className="font-semibold text-gray-700 mb-4">새 시안 등록</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">썸네일 이미지</label>
+                {designUploadedUrl ? (
+                  <div className="flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={designUploadedUrl} alt="썸네일 미리보기" className="w-24 h-16 object-cover rounded-lg border" />
+                    <button type="button" onClick={() => setDesignUploadedUrl('')} className="text-xs text-red-500 hover:text-red-700">제거</button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => designFileRef.current?.click()}
+                    className="w-full border-2 border-dashed border-gray-300 rounded-xl py-4 text-gray-400 text-sm hover:border-pink-300 hover:text-pink-400 transition">
+                    {designUploading ? '업로드 중...' : '+ 이미지 업로드'}
+                  </button>
+                )}
+                <input ref={designFileRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadDesignThumbnail(f); e.target.value = '' }} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">시안 이름</label>
+                <input value={newDesign.name} onChange={e => setNewDesign(p => ({ ...p, name: e.target.value }))}
+                  placeholder="예) 식목일 생태체험" className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">카테고리</label>
+                  <input value={newDesign.category} onChange={e => setNewDesign(p => ({ ...p, category: e.target.value }))}
+                    placeholder="예) 식목일, 졸업식" className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">정렬 순서</label>
+                  <input value={newDesign.sort_order} onChange={e => setNewDesign(p => ({ ...p, sort_order: parseInt(e.target.value) || 0 }))}
+                    type="number" placeholder="0" className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300" />
+                </div>
+              </div>
+              <button type="button" onClick={addDesign}
+                className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-xl font-semibold text-sm hover:opacity-90 transition">
+                시안 등록
+              </button>
+            </div>
+          </div>
+
+          {/* 등록된 시안 목록 */}
+          {designsLoading ? (
+            <div className="text-center py-12 text-gray-400">불러오는 중...</div>
+          ) : designs.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">등록된 시안이 없습니다.</div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {designs.map(design => (
+                <div key={design.id} className={`bg-white rounded-2xl shadow-sm overflow-hidden ${!design.active ? 'opacity-50' : ''}`}>
+                  <div className="aspect-video bg-gray-100">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={design.thumbnail_url} alt={design.name} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="p-3">
+                    <p className="text-sm font-semibold text-gray-800 truncate">{design.name}</p>
+                    {design.category && <p className="text-xs text-gray-400 mt-0.5">{design.category}</p>}
+                    <div className="flex items-center gap-2 mt-2">
+                      <button type="button" onClick={() => toggleDesignActive(design.id, !design.active)}
+                        className={`flex-1 text-xs py-1.5 rounded-lg border transition font-medium ${design.active ? 'border-green-300 text-green-600 bg-green-50 hover:bg-green-100' : 'border-gray-300 text-gray-400 hover:border-green-300'}`}>
+                        {design.active ? '노출 중' : '숨김'}
+                      </button>
+                      <button type="button" onClick={() => deleteDesign(design.id)}
+                        className="text-xs py-1.5 px-2.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">
+                        삭제
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
