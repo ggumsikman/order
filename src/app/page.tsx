@@ -116,10 +116,11 @@ const DESIGN_TYPES = ['기본 디자인 선택', '맞춤 디자인 요청', '직
 const PAYMENT_METHODS = ['계좌이체', '카드결제']
 const FINISHING_OPTIONS = ['열재단', '아일렛타공', '각목마감']
 
-interface BannerDesign {
+interface Design {
   id: string
   name: string
   thumbnail_url: string
+  product_type: string
   category: string
   sort_order: number
 }
@@ -244,12 +245,12 @@ export default function OrderPage() {
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [bannerDesigns, setBannerDesigns] = useState<BannerDesign[]>([])
+  const [designs, setDesigns] = useState<Design[]>([])
   const [showDesignPicker, setShowDesignPicker] = useState<number | null>(null)
 
   useEffect(() => {
     fetch('/api/designs').then(r => r.json()).then(d => {
-      if (d.success) setBannerDesigns(d.designs)
+      if (d.success) setDesigns(d.designs)
     }).catch(() => {})
   }, [])
 
@@ -314,6 +315,7 @@ export default function OrderPage() {
           if (!item.height_cm) newErrors[`item_${i}_height_cm`] = '세로 사이즈를 입력해주세요.'
         }
       } else {
+        if (item.design_type === '기본 디자인 선택' && !item.design_id) newErrors[`item_${i}_design_id`] = '시안을 선택해주세요.'
         if (!item.width_cm) newErrors[`item_${i}_width_cm`] = '가로 사이즈를 입력해주세요.'
         if (!item.height_cm) newErrors[`item_${i}_height_cm`] = '세로 사이즈를 입력해주세요.'
       }
@@ -430,11 +432,17 @@ export default function OrderPage() {
               <button type="button" onClick={() => setShowDesignPicker(null)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
             </div>
             <div className="overflow-y-auto flex-1 p-4">
-              {bannerDesigns.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 text-sm">등록된 시안이 없습니다.<br /><span className="text-xs">관리자 페이지에서 시안을 등록해주세요.</span></div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {bannerDesigns.map(design => (
+              {(() => {
+                const currentProductType = showDesignPicker !== null ? items[showDesignPicker]?.product_type : ''
+                const filtered = designs.filter(d => d.product_type === currentProductType)
+                return filtered.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400 text-sm">
+                    {currentProductType} 시안이 없습니다.<br />
+                    <span className="text-xs">관리자 페이지 → 시안 탭에서 등록해주세요.</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {filtered.map(design => (
                     <button key={design.id} type="button"
                       onClick={() => {
                         setItems(prev => prev.map((it, i) => i === showDesignPicker ? {
@@ -453,9 +461,10 @@ export default function OrderPage() {
                         {design.category && <p className="text-xs text-gray-400 mt-0.5">{design.category}</p>}
                       </div>
                     </button>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )
+              })()}
             </div>
           </div>
         </div>
@@ -784,10 +793,25 @@ export default function OrderPage() {
                     </Field>
                     {item.design_type === '기본 디자인 선택' && (
                       <>
-                        <Field label="디자인 이름" error={errors[`item_${index}_design_name`]}>
-                          <input value={item.design_name} onChange={e => updateItem(index, 'design_name', e.target.value)} placeholder="예) 식목일 생태체험, 크레파스밭기" className={inputClass(errors[`item_${index}_design_name`])} />
-                          <p className="text-xs text-gray-400 mt-1">네이버 스마트스토어 상세페이지에서 확인하신 디자인 이름을 적어주세요.</p>
-                        </Field>
+                        <div>
+                          <p className="text-sm font-medium text-gray-700 mb-2">시안 선택 <span className="text-pink-500">*</span></p>
+                          {item.design_id ? (
+                            <div className="flex items-center gap-3 p-3 bg-pink-50 border border-pink-200 rounded-xl">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={item.design_thumbnail} alt={item.design_name} className="w-16 h-16 object-cover rounded-lg" />
+                              <div className="flex-1">
+                                <p className="text-sm font-semibold text-gray-800">{item.design_name}</p>
+                              </div>
+                              <button type="button" onClick={() => setShowDesignPicker(index)} className="text-xs text-pink-500 hover:text-pink-700 font-medium">변경</button>
+                            </div>
+                          ) : (
+                            <button type="button" onClick={() => setShowDesignPicker(index)}
+                              className="w-full py-8 border-2 border-dashed border-pink-300 rounded-xl text-pink-500 text-sm hover:bg-pink-50 transition">
+                              + 시안 선택하기
+                            </button>
+                          )}
+                          {errors[`item_${index}_design_id`] && <p className="text-red-500 text-xs mt-1">{errors[`item_${index}_design_id`]}</p>}
+                        </div>
                         <Field label="세부 디자인 (색상/버전)">
                           <input value={item.design_sub_name} onChange={e => updateItem(index, 'design_sub_name', e.target.value)} placeholder="예) 초록나무, 핑크버전 (해당되는 경우만)" className={inputClass()} />
                         </Field>

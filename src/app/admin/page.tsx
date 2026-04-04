@@ -78,9 +78,10 @@ export default function AdminPage() {
   const [viewMode, setViewMode] = useState<'list' | 'kanban' | 'designs'>('list')
 
   // 시안 관리 상태
-  const [designs, setDesigns] = useState<{id: string; name: string; thumbnail_url: string; category: string; sort_order: number; active: boolean}[]>([])
+  const [designs, setDesigns] = useState<{id: string; name: string; thumbnail_url: string; product_type: string; category: string; sort_order: number; active: boolean}[]>([])
   const [designsLoading, setDesignsLoading] = useState(false)
-  const [newDesign, setNewDesign] = useState({ name: '', category: '', sort_order: 0 })
+  const [designFilter, setDesignFilter] = useState('전체')
+  const [newDesign, setNewDesign] = useState({ name: '', product_type: '현수막', category: '', sort_order: 0 })
   const [designUploading, setDesignUploading] = useState(false)
   const [designUploadedUrl, setDesignUploadedUrl] = useState('')
   const designFileRef = useRef<HTMLInputElement>(null)
@@ -302,7 +303,7 @@ export default function AdminPage() {
     const result = await res.json()
     if (result.success) {
       setDesigns(prev => [...prev, result.design])
-      setNewDesign({ name: '', category: '', sort_order: 0 })
+      setNewDesign({ name: '', product_type: '현수막', category: '', sort_order: 0 })
       setDesignUploadedUrl('')
     } else {
       alert('등록 실패: ' + (result.error || '알 수 없는 오류'))
@@ -517,6 +518,17 @@ export default function AdminPage() {
                   onChange={e => { const f = e.target.files?.[0]; if (f) uploadDesignThumbnail(f); e.target.value = '' }} />
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">제품 종류 <span className="text-pink-500">*</span></label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {['현수막', '배너', '어깨띠', '환경구성판', '포토판넬', '명찰', '팻말'].map(pt => (
+                    <button key={pt} type="button"
+                      onClick={() => setNewDesign(p => ({ ...p, product_type: pt }))}
+                      className={`py-2 rounded-xl border text-xs font-medium transition ${newDesign.product_type === pt ? 'bg-pink-500 border-pink-500 text-white' : 'border-gray-200 text-gray-600 hover:border-pink-300'}`}
+                    >{pt}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">시안 이름</label>
                 <input value={newDesign.name} onChange={e => setNewDesign(p => ({ ...p, name: e.target.value }))}
                   placeholder="예) 식목일 생태체험" className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300" />
@@ -543,33 +555,50 @@ export default function AdminPage() {
           {/* 등록된 시안 목록 */}
           {designsLoading ? (
             <div className="text-center py-12 text-gray-400">불러오는 중...</div>
-          ) : designs.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">등록된 시안이 없습니다.</div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {designs.map(design => (
-                <div key={design.id} className={`bg-white rounded-2xl shadow-sm overflow-hidden ${!design.active ? 'opacity-50' : ''}`}>
-                  <div className="aspect-video bg-gray-100">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={design.thumbnail_url} alt={design.name} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="p-3">
-                    <p className="text-sm font-semibold text-gray-800 truncate">{design.name}</p>
-                    {design.category && <p className="text-xs text-gray-400 mt-0.5">{design.category}</p>}
-                    <div className="flex items-center gap-2 mt-2">
-                      <button type="button" onClick={() => toggleDesignActive(design.id, !design.active)}
-                        className={`flex-1 text-xs py-1.5 rounded-lg border transition font-medium ${design.active ? 'border-green-300 text-green-600 bg-green-50 hover:bg-green-100' : 'border-gray-300 text-gray-400 hover:border-green-300'}`}>
-                        {design.active ? '노출 중' : '숨김'}
-                      </button>
-                      <button type="button" onClick={() => deleteDesign(design.id)}
-                        className="text-xs py-1.5 px-2.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">
-                        삭제
-                      </button>
+            <>
+              {/* 제품 종류 필터 */}
+              <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+                {['전체', '현수막', '배너', '어깨띠', '환경구성판', '포토판넬', '명찰', '팻말'].map(pt => {
+                  const cnt = pt === '전체' ? designs.length : designs.filter(d => d.product_type === pt).length
+                  return (
+                    <button key={pt} onClick={() => setDesignFilter(pt)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition ${designFilter === pt ? 'bg-pink-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}>
+                      {pt} ({cnt})
+                    </button>
+                  )
+                })}
+              </div>
+              {designs.filter(d => designFilter === '전체' || d.product_type === designFilter).length === 0 ? (
+                <div className="text-center py-12 text-gray-400 text-sm">등록된 시안이 없습니다.</div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {designs.filter(d => designFilter === '전체' || d.product_type === designFilter).map(design => (
+                    <div key={design.id} className={`bg-white rounded-2xl shadow-sm overflow-hidden ${!design.active ? 'opacity-50' : ''}`}>
+                      <div className="aspect-video bg-gray-100 relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={design.thumbnail_url} alt={design.name} className="w-full h-full object-cover" />
+                        <span className="absolute top-1.5 left-1.5 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded-md">{design.product_type}</span>
+                      </div>
+                      <div className="p-3">
+                        <p className="text-sm font-semibold text-gray-800 truncate">{design.name}</p>
+                        {design.category && <p className="text-xs text-gray-400 mt-0.5">{design.category}</p>}
+                        <div className="flex items-center gap-2 mt-2">
+                          <button type="button" onClick={() => toggleDesignActive(design.id, !design.active)}
+                            className={`flex-1 text-xs py-1.5 rounded-lg border transition font-medium ${design.active ? 'border-green-300 text-green-600 bg-green-50 hover:bg-green-100' : 'border-gray-300 text-gray-400 hover:border-green-300'}`}>
+                            {design.active ? '노출 중' : '숨김'}
+                          </button>
+                          <button type="button" onClick={() => deleteDesign(design.id)}
+                            className="text-xs py-1.5 px-2.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">
+                            삭제
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       )}

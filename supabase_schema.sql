@@ -87,31 +87,35 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS final_price INTEGER;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS draft_history JSONB DEFAULT '[]';
 
 -- =============================================
--- 마이그레이션: 배너 시안 관리 테이블
+-- 마이그레이션: 시안 관리 테이블 (전 제품 공용)
 -- Supabase 대시보드 > SQL Editor에서 실행하세요
+-- banner_designs 테이블을 만든 경우 DROP 후 재생성
 -- =============================================
-CREATE TABLE IF NOT EXISTS banner_designs (
+DROP TABLE IF EXISTS banner_designs;
+
+CREATE TABLE IF NOT EXISTS designs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   name TEXT NOT NULL,
   thumbnail_url TEXT NOT NULL,
+  product_type TEXT NOT NULL DEFAULT '현수막',
   category TEXT NOT NULL DEFAULT '',
   sort_order INTEGER DEFAULT 0,
   active BOOLEAN DEFAULT true
 );
 
-CREATE INDEX IF NOT EXISTS banner_designs_sort_idx ON banner_designs (sort_order ASC, created_at DESC);
+CREATE INDEX IF NOT EXISTS designs_product_type_idx ON designs (product_type, sort_order ASC, created_at DESC);
 
-ALTER TABLE banner_designs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE designs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "anon can select banner_designs" ON banner_designs
+CREATE POLICY "anon can select designs" ON designs
   FOR SELECT TO anon USING (true);
 
-CREATE POLICY "anon can insert banner_designs" ON banner_designs
+CREATE POLICY "anon can insert designs" ON designs
   FOR INSERT TO anon WITH CHECK (true);
 
-CREATE POLICY "anon can update banner_designs" ON banner_designs
+CREATE POLICY "anon can update designs" ON designs
   FOR UPDATE TO anon USING (true);
 
-CREATE POLICY "anon can delete banner_designs" ON banner_designs
+CREATE POLICY "anon can delete designs" ON designs
   FOR DELETE TO anon USING (true);

@@ -6,7 +6,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { id } = await params
     const body = await req.json()
     const { data, error } = await supabase
-      .from('banner_designs')
+      .from('designs')
       .update(body)
       .eq('id', id)
       .select()
@@ -23,7 +23,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   try {
     const { id } = await params
     const { error } = await supabase
-      .from('banner_designs')
+      .from('designs')
       .delete()
       .eq('id', id)
 
