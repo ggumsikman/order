@@ -381,12 +381,22 @@ export default function AdminPage() {
             <p className="text-xs text-gray-400">주문 관리 페이지</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex bg-gray-100 rounded-lg p-1 text-xs">
-              <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 rounded-md transition font-medium ${viewMode === 'list' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>리스트</button>
-              <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 rounded-md transition font-medium ${viewMode === 'kanban' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>칸반</button>
-              <button onClick={() => setViewMode('designs')} className={`px-3 py-1.5 rounded-md transition font-medium ${viewMode === 'designs' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>시안</button>
-            </div>
-            <button onClick={viewMode === 'designs' ? fetchDesigns : fetchOrders} className="text-sm text-pink-500 hover:text-pink-700 font-medium">새로고침</button>
+            {viewMode !== 'designs' ? (
+              <>
+                <div className="flex bg-gray-100 rounded-lg p-1 text-xs">
+                  <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 rounded-md transition font-medium ${viewMode === 'list' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>리스트</button>
+                  <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 rounded-md transition font-medium ${viewMode === 'kanban' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>칸반</button>
+                </div>
+                <div className="w-px h-5 bg-gray-200" />
+                <button onClick={() => setViewMode('designs')} className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:border-pink-300 hover:text-pink-500 transition font-medium">🖼 시안 관리</button>
+                <button onClick={fetchOrders} className="text-sm text-pink-500 hover:text-pink-700 font-medium">새로고침</button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => setViewMode('list')} className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700 transition font-medium">← 주문 관리</button>
+                <button onClick={fetchDesigns} className="text-sm text-pink-500 hover:text-pink-700 font-medium">새로고침</button>
+              </>
+            )}
           </div>
         </div>
       </div>
