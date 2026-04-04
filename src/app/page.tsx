@@ -331,7 +331,13 @@ export default function OrderPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!validate()) return
+    if (!validate()) {
+      setTimeout(() => {
+        const firstError = document.querySelector('[data-error="true"]')
+        if (firstError) firstError.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
+      return
+    }
     setIsSubmitting(true)
     try {
       const imageUrls: string[] = []
@@ -1106,7 +1112,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
   return (
-    <div>
+    <div data-error={error ? 'true' : undefined}>
       <label className="block text-sm font-medium text-gray-700 mb-1.5">
         {label} {required && <span className="text-pink-500">*</span>}
       </label>
